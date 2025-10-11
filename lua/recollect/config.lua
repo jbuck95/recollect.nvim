@@ -5,6 +5,7 @@ M.defaults = {
   birthday = "1990-01-01",
   max_age = 95,
   grid_mode = "life", -- "life", "year", or "calendar"
+  locale = "en_US.UTF-8", -- Set the locale for date formatting
   note_split_mode = "split", -- "split" or "reuse"
   daily_notes_path = vim.fn.expand("~") .. "/Documents/notes/dailies/",
   daily_notes_format = "%Y-%m-%d",

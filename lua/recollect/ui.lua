@@ -278,9 +278,25 @@ local function update_date_display()
         local current_date = grid.parse_date(date_str)
         local years, months, days = grid.age_detailed(birthday, current_date)
         
-        -- Ermittelt den Wochentag
         local timestamp = grid.date_to_timestamp(current_date)
-        local weekday = os.date("%A", timestamp)
+        local weekday
+        -- Temporarily set locale for weekday formatting
+        local original_locale = os.setlocale(nil, "time")
+        local success, result = pcall(function()
+            os.setlocale(cfg.locale, "time")
+            local day_name = os.date("%A", timestamp)
+            os.setlocale(original_locale, "time")
+            return day_name
+        end)
+
+        if success and result then
+            weekday = result
+        else
+            -- Fallback to 'C' locale if the configured one fails
+            os.setlocale("C", "time")
+            weekday = os.date("%A", timestamp)
+            os.setlocale(original_locale, "time")
+        end
 
         -- Baut den String mit dem Wochentag in der untersten Zeile zusammen
         local display_str = string.format(" %s\n %dY %02dM %02dD\n  %s", date_str, years, months, days, weekday)
