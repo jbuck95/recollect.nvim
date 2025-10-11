@@ -13,6 +13,7 @@ Nvim Plugin to visualize, compare and edit Notes in a Grid.
    Grid strarting Date, aswell as the Weekday of the Dot your cursor
    is on. 
 - you can highlight and edit time periods. 
+- integrates into obsidian.nvim plugin
 - you can toggle split behaviour to replace the current note, or open
    two notes and alwys replace the older one. Splits are done
    automatically based on width/height racio of your window. 
@@ -162,6 +163,19 @@ date: %s
 you can configure further in the config.lua. For e.g. the Tag-Symbols or
 periods (if you define periods in recall, they get saved in your nvim
 folder as recollect.json)
+
+yaml-frontmatter example: 
+```
+---
+id: testnote
+aliases: []
+tags:
+  - deadline
+  - work
+---
+```
+
+In config.lua:
 ```
 
   periods = {
