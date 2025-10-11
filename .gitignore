@@ -1,0 +1,8 @@
+# Compiled files
+*.luac
+
+# Local Neovim files
+/testsession.vim
+.nvimlog
+.swp
+.swo
