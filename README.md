@@ -1,6 +1,6 @@
 # recollect 
 
-Nvim Plugin to visualize, compare and edit Notes in a Grid.
+Nvim Plugin to visualize, compare and edit Notes on a Grid.
 
 - Checks a folder for all files: "YYYY-MM-DD.md"  
 - Places them on a Grid.  
