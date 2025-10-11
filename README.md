@@ -1,10 +1,10 @@
 # recollect 
 
-Nvim Plugin to visualize Notes in a Grid, comparing them, and editing.
+Nvim Plugin to visualize, compare and edit Notes in a Grid.
 
--> Checks a folder for all files: "YYYY-MM-DD.md"
--> Places them on a Grid.
--> Grid has 2 Modes: 
+-> Checks a folder for all files: "YYYY-MM-DD.md"  
+-> Places them on a Grid.  
+-> Grid has 2 Modes:   
     1. renders for a Year since the 1st of Jan. 
     2. you can set a Custom date (Project start or your Birthday or whatever) 
 -> Plugin can read your YAML frontmatter; allows dynamically changing
