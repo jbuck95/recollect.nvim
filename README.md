@@ -2,28 +2,27 @@
 
 Nvim Plugin to visualize, compare and edit Notes on a Grid.
 
-- Checks a folder for all files: "YYYY-MM-DD.md"  
-- Places them on a Grid.  
-- Grid has 2 Modes:   
-    1. renders for a Year since the 1st of Jan. 
-    2. you can set a Custom date (Project start or your Birthday or whatever) 
-- Plugin can read your YAML frontmatter; allows dynamically changing
-   symbols based on tags in your .md files. 
-- Grid shows Current date, Years , Months, Days counter since the
+- Checks a folder for all files with the format: "YYYY-MM-DD.md" and
+  places them on a grid for a visual feedback.
+- The Grid has 2 Modes:   
+    1. renders for a Years, always starting the dots on 1st of January
+    2. renders from/til your Custom dates (Project start or your Birthday or whatever) 
+- Plugin can read your YAML frontmatter; that means automatically changing
+   symbols based on the tags you set in your .md files. 
+- Grid shows Current date; Years, Months, Days, And a counter since the
    Grid strarting Date, aswell as the Weekday of the Dot your cursor
    is on. 
 - you can highlight and edit time periods. 
 - integrates into obsidian.nvim plugin
-- you can toggle split behaviour to replace the current note, or open
-   two notes and alwys replace the older one. Splits are done
-   automatically based on width/height racio of your window. 
+- check the Keybindings for possible toggles regarding split and
+  rendering behaviour
 
-This is a personal project and many aspects are vibe coded after hours
-of researching and already drinking too much coffe for my master
-thesis. Since I switched from Obsidian to Nvim for all notetaking and
-writing, I was missing a option to visually see my dailies and so this
-was born. If anyone is interestet to vet or refactor, i would
-appreciate that! 
+This is a personal project and many parts are vibe coded after hours
+of researching and already drinking too much coffe for my totally
+unrelated master thesis. Since I switched from Obsidian to Nvim for
+all notetaking and writing, I was missing a option to visually see my
+dailies and so this was born. No programming background so if anyone
+is interestet to vet or refactor, i would appreciate that! 
 
 ## Preview
 
@@ -114,7 +113,7 @@ date: %s
       end,
 
       -- You can define custom time periods that get highlighted in the grid.
-      periods = {
+      -- periods = {
         {
           start = "2020-03-11",
           finish = "2022-05-01",
@@ -214,6 +213,10 @@ In config.lua:
   },
 }
 ```
+
+## Todo: 
+- rework periods 
+- timers (days_since/days_until)
 
 
 ## Credits
