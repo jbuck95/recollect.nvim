@@ -2,18 +2,18 @@
 
 Nvim Plugin to visualize, compare and edit Notes in a Grid.
 
--> Checks a folder for all files: "YYYY-MM-DD.md"  
--> Places them on a Grid.  
--> Grid has 2 Modes:   
+- Checks a folder for all files: "YYYY-MM-DD.md"  
+- Places them on a Grid.  
+- Grid has 2 Modes:   
     1. renders for a Year since the 1st of Jan. 
     2. you can set a Custom date (Project start or your Birthday or whatever) 
--> Plugin can read your YAML frontmatter; allows dynamically changing
+- Plugin can read your YAML frontmatter; allows dynamically changing
    symbols based on tags in your .md files. 
--> Grid shows Current date, Years , Months, Days counter since the
+- Grid shows Current date, Years , Months, Days counter since the
    Grid strarting Date, aswell as the Weekday of the Dot your cursor
    is on. 
--> you can highlight and edit time periods. 
--> you can toggle split behaviour to replace the current note, or open
+- you can highlight and edit time periods. 
+- you can toggle split behaviour to replace the current note, or open
    two notes and alwys replace the older one. Splits are done
    automatically based on width/height racio of your window. 
 
@@ -28,7 +28,7 @@ appreciate that!
 
 ![help](help.png)
 
-![preview](png)
+![preview](preview.png)
 
 
 ## Usage
