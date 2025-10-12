@@ -48,7 +48,6 @@ you can always press '?' for help.
 |:---|:---|
 | **Navigation** | |
 | `j/k/b/w` | Move cursor |
-| `<C-d>/<C-u>` | Scroll half page |
 | `t` | Jump to today |
 | `/` | Search date (YYYY-MM-DD) |
 | `[` | Jump to previous note |
