@@ -215,8 +215,9 @@ In config.lua:
 ```
 
 ## Todo: 
-- rework periods 
-- timers (days_since/days_until)
+- [ ] rework periods 
+- [ ] timers 
+- [x] days_since / days_until
 
 
 ## Credits
