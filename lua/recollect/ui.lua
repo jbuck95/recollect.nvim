@@ -298,8 +298,7 @@ local function update_date_display()
             os.setlocale(original_locale, "time")
         end
 
-        -- Baut den String mit dem Wochentag in der untersten Zeile zusammen
-        local display_str = string.format(" %s\n %dY %02dM %02dD\n  %s", date_str, years, months, days, weekday)
+        local display_str = string.format(" %dY %02dM %02dD\n %s,\n %s", years, months, days, weekday, date_str)
         
         vim.api.nvim_buf_set_lines(M.date_buf, 0, -1, false, vim.split(display_str, "\n"))
     else
