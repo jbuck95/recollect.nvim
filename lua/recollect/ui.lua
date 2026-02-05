@@ -298,7 +298,20 @@ local function update_date_display()
             os.setlocale(original_locale, "time")
         end
 
-        local display_str = string.format(" %dY %02dM %02dD\n %s,\n %s", years, months, days, weekday, date_str)
+        local today_date_str = os.date("%Y-%m-%d")
+        local today_parsed = grid.parse_date(today_date_str)
+        local days_diff = grid.days_between(today_parsed, current_date)
+        
+        local days_diff_str
+        if days_diff == 0 then
+            days_diff_str = "Today"
+        elseif days_diff > 0 then
+            days_diff_str = string.format("+%d day%s", days_diff, days_diff == 1 and "" or "s")
+        else
+            days_diff_str = string.format("%d day%s", days_diff, days_diff == -1 and "" or "s")
+        end
+
+        local display_str = string.format(" %dY %02dM %02dD\n %s,\n %s\n %s", years, months, days, weekday, date_str, days_diff_str)
         
         vim.api.nvim_buf_set_lines(M.date_buf, 0, -1, false, vim.split(display_str, "\n"))
     else
@@ -996,7 +1009,7 @@ function M.open()
 		--		col = vim.o.columns - 14,
 		col = 80,
 		width = 12,
-		height = 3,
+		height = 4,
 		style = 'minimal',
 		border = 'shadow',
 		focusable = false,
