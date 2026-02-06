@@ -27,10 +27,9 @@ is interestet to vet or refactor, i would appreciate that!
 
 ## Preview
 
-![help](help.png)
+![Preview Main](https://github.com/user-attachments/assets/6a7167b6-914f-4ef6-a78f-8d6157113fb1)
 
-![preview](preview.png)
-
+![Preview Details](https://github.com/user-attachments/assets/fbe282fc-ed3e-496d-9c0f-a00feef2744a)
 
 ## Usage
 Open Recollect: 
