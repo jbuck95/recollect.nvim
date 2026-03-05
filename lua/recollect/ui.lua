@@ -316,32 +316,40 @@ local function update_date_display()
 		local has_note = notes.note_exists(date_str)
 		local real_meta = notes.note_metadata[date_str] or {}
 
-		if has_note then
-			local all_tags = real_meta.tags
-			if all_tags then
-				if type(all_tags) == "string" then all_tags = { all_tags } end
-				local tag_parts = {}
-				for _, t in ipairs(all_tags) do table.insert(tag_parts, "#" .. t) end
-				if #tag_parts > 0 then
-					display_str = display_str .. "\n\n " .. table.concat(tag_parts, "  ")
-				end
-			end
-			if real_meta.title then
-				display_str = display_str .. "\n " .. real_meta.title
-			end
-		else
-			local virt = recurring.get_virtual_metadata(date_str)
-			if virt then
-				local tag_parts = {}
-				for _, t in ipairs(virt.tags) do table.insert(tag_parts, "#" .. t) end
-				if #tag_parts > 0 then
-					display_str = display_str .. "\n\n " .. table.concat(tag_parts, "  ")
-				end
-				if virt.title then
-					display_str = display_str .. "\n " .. virt.title
-				end
-			end
-		end
+if has_note then
+    local tag_parts = {}
+    local all_tags = real_meta.tags
+    if all_tags then
+        if type(all_tags) == "string" then all_tags = { all_tags } end
+        for _, t in ipairs(all_tags) do table.insert(tag_parts, "#" .. t) end
+    end
+    
+    if #tag_parts > 0 then
+        display_str = display_str .. "\n\n " .. table.concat(tag_parts, "  ")
+    end
+    
+    if type(real_meta.title) == "string" and real_meta.title ~= "" then
+        local prefix = (#tag_parts > 0) and "\n " or "\n\n "
+        display_str = display_str .. prefix .. real_meta.title
+    end
+else
+    local virt = recurring.get_virtual_metadata(date_str)
+    if virt then
+        local tag_parts = {}
+        if virt.tags then
+            for _, t in ipairs(virt.tags) do table.insert(tag_parts, "#" .. t) end
+        end
+        
+        if #tag_parts > 0 then
+            display_str = display_str .. "\n\n " .. table.concat(tag_parts, "  ")
+        end
+        
+        if type(virt.title) == "string" and virt.title ~= "" then
+            local prefix = (#tag_parts > 0) and "\n " or "\n\n "
+            display_str = display_str .. prefix .. virt.title
+        end
+    end
+end
 
 		vim.api.nvim_buf_set_lines(M.date_buf, 0, -1, false, vim.split(display_str, "\n"))
 	else
@@ -1178,7 +1186,7 @@ function M.open()
 		relative = 'editor',
 		row = 19,
 		col = 80,
-		width = 14,
+		width = 22,
 		height = 10,
 		style = 'minimal',
 		border = 'none',
