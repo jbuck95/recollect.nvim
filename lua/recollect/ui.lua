@@ -361,7 +361,9 @@ local function show_note_preview()
 	end
 
 	vim.api.nvim_buf_set_lines(M.preview_buf, 0, -1, false, vim.split(content, "\n"))
-
+	vim.api.nvim_buf_call(M.preview_buf, function()
+  	vim.cmd("lcd " .. vim.fn.fnameescape(cfg.daily_notes_path))
+	end)
 	local vertical_split_threshold = 120
 	local win_width = vim.api.nvim_win_get_width(M.win)
 	local use_wide_preview = win_width > vertical_split_threshold
