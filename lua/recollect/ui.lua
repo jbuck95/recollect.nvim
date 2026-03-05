@@ -1178,7 +1178,7 @@ function M.open()
 		relative = 'editor',
 		row = 19,
 		col = 80,
-		width = 12,
+		width = 14,
 		height = 10,
 		style = 'minimal',
 		border = 'none',
