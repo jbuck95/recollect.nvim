@@ -22,7 +22,6 @@ M.current_year_view = nil
 M.note_win_ids = {}
 M.split_strategy = nil
 
-
 local function setup_highlights()
 	local cfg = config.get()
 
@@ -34,6 +33,11 @@ local function setup_highlights()
 	vim.api.nvim_set_hl(0, "recollectSelected", { fg = "#ffffff", bg = "#585b70", bold = true })
 	vim.api.nvim_set_hl(0, "recollectPreBirth", { fg = cfg.colors.default_dot })
 end
+	vim.api.nvim_set_hl(0, "recollectTopBar", { 
+        bg = "#313244", 
+        fg = "#cdd6f4", 
+        bold = true 
+    })
 
 local function get_day_display(day)
 	if day.is_pre_birth then
@@ -105,8 +109,7 @@ local function render_grid()
 	local lines = {}
 	local highlights = {}
 
-	local days_per_row = 25
-	local days_per_year = 364
+	local days_per_row = 29
 	local width = days_per_row * 3 + 10
 
 	table.insert(lines, "╔" .. string.rep("═", width - 2) .. "╗")
@@ -272,7 +275,7 @@ local function update_date_display()
 	local day_idx = find_day_at_cursor()
 	if day_idx and M.days[day_idx] and M.date_buf and vim.api.nvim_buf_is_valid(M.date_buf) then
 		local day = M.days[day_idx]
-		local date_str = string.format("%s", day.date)
+		local date_str = day.date
 		local cfg = config.get()
 		local birthday = grid.parse_date(cfg.birthday)
 		local current_date = grid.parse_date(date_str)
@@ -288,70 +291,35 @@ local function update_date_display()
 			return day_name
 		end)
 
-		if success and result then
-			weekday = result
-		else
-			os.setlocale("C", "time")
-			weekday = os.date("%A", timestamp)
-			os.setlocale(original_locale, "time")
-		end
+		weekday = (success and result) and result or os.date("%A", timestamp)
 
 		local today_date_str = os.date("%Y-%m-%d")
 		local today_parsed = grid.parse_date(today_date_str)
 		local days_diff = grid.days_between(today_parsed, current_date)
 
-		local days_diff_str
-		if days_diff == 0 then
-			days_diff_str = "Today"
-		elseif days_diff > 0 then
-			days_diff_str = string.format("+%d day%s", days_diff, days_diff == 1 and "" or "s")
-		else
-			days_diff_str = string.format("%d day%s", days_diff, days_diff == -1 and "" or "s")
-		end
+		local days_diff_str = days_diff == 0 and "Today" or string.format("%+d day%s", days_diff, math.abs(days_diff) == 1 and "" or "s")
 
-		local display_str = string.format(" %s,\n %s\n\n %s\n %dY %02dM %02dD", weekday, date_str, days_diff_str, years, months, days)
-
-		local display_str = string.format(" %s,\n %s\n\n %s\n %dY %02dM %02dD", weekday, date_str, days_diff_str, years, months, days)
+		-- Horizontale Formatierung für die Top-Bar
+		local display_str = string.format(" %s  │  %s  │  %s  │  %dY %02dM %02dD", weekday, date_str, days_diff_str, years, months, days)
 
 		local has_note = notes.note_exists(date_str)
-		local real_meta = notes.note_metadata[date_str] or {}
+		local meta = has_note and (notes.note_metadata[date_str] or {}) or (recurring.get_virtual_metadata(date_str) or {})
 
-if has_note then
-    local tag_parts = {}
-    local all_tags = real_meta.tags
-    if all_tags then
-        if type(all_tags) == "string" then all_tags = { all_tags } end
-        for _, t in ipairs(all_tags) do table.insert(tag_parts, "#" .. t) end
-    end
-    
-    if #tag_parts > 0 then
-        display_str = display_str .. "\n\n " .. table.concat(tag_parts, "  ")
-    end
-    
-    if type(real_meta.title) == "string" and real_meta.title ~= "" then
-        local prefix = (#tag_parts > 0) and "\n " or "\n\n "
-        display_str = display_str .. prefix .. real_meta.title
-    end
-else
-    local virt = recurring.get_virtual_metadata(date_str)
-    if virt then
-        local tag_parts = {}
-        if virt.tags then
-            for _, t in ipairs(virt.tags) do table.insert(tag_parts, "#" .. t) end
-        end
-        
-        if #tag_parts > 0 then
-            display_str = display_str .. "\n\n " .. table.concat(tag_parts, "  ")
-        end
-        
-        if type(virt.title) == "string" and virt.title ~= "" then
-            local prefix = (#tag_parts > 0) and "\n " or "\n\n "
-            display_str = display_str .. prefix .. virt.title
-        end
-    end
-end
+		local tag_parts = {}
+		if meta.tags then
+			local all_tags = type(meta.tags) == "string" and { meta.tags } or meta.tags
+			for _, t in ipairs(all_tags) do table.insert(tag_parts, "#" .. t) end
+		end
 
-		vim.api.nvim_buf_set_lines(M.date_buf, 0, -1, false, vim.split(display_str, "\n"))
+		if #tag_parts > 0 then
+			display_str = display_str .. "  │  " .. table.concat(tag_parts, "  ")
+		end
+
+		if type(meta.title) == "string" and meta.title ~= "" then
+			display_str = display_str .. "  │  " .. meta.title
+		end
+
+		vim.api.nvim_buf_set_lines(M.date_buf, 0, -1, false, { display_str })
 	else
 		if M.date_buf and vim.api.nvim_buf_is_valid(M.date_buf) then
 			vim.api.nvim_buf_set_lines(M.date_buf, 0, -1, false, {''})
@@ -406,6 +374,7 @@ local function show_note_preview()
 	vim.api.nvim_buf_call(M.preview_buf, function()
 		vim.cmd("lcd " .. vim.fn.fnameescape(cfg.daily_notes_path))
 	end)
+	
 	local vertical_split_threshold = 120
 	local win_width = vim.api.nvim_win_get_width(M.win)
 	local use_wide_preview = win_width > vertical_split_threshold
@@ -418,7 +387,7 @@ local function show_note_preview()
 		width = vim.o.columns - grid_width - (margin * 3)
 		height = vim.o.lines - 4
 		row = 1
-		col = 109 - margin
+		col = 113 - margin
 	else
 		local max_height = math.floor(vim.o.lines * 0.35)
 		height = math.min(max_height, #vim.split(content, "\n"))
@@ -547,13 +516,10 @@ local function open_note_split()
 
 		local valid = {}
 		for _, win_id in ipairs(M.note_win_ids) do
-			if vim.api.nvim_win_is_valid(win_id) then
-				table.insert(valid, win_id)
-			end
+			if vim.api.nvim_win_is_valid(win_id) then table.insert(valid, win_id) end
 		end
 		M.note_win_ids = valid
 
-		local cfg = config.get()
 		if cfg.note_split_mode == "reuse" and #M.note_win_ids > 0 then
 			local note_win_id = M.note_win_ids[1]
 			local buf = vim.fn.bufnr(filepath, true)
@@ -561,23 +527,11 @@ local function open_note_split()
 			vim.api.nvim_buf_call(buf, function() vim.cmd("edit") end)
 			vim.api.nvim_set_current_win(current_grid_win)
 		else
-			local effective_split_strategy = M.split_strategy
-			if not effective_split_strategy then
-				if win_width <= vertical_split_threshold then
-					effective_split_strategy = "narrow"
-				else
-					effective_split_strategy = "wide"
-				end
-				M.split_strategy = effective_split_strategy
-			end
+			local strategy = M.split_strategy or (win_width <= vertical_split_threshold and "narrow" or "wide")
+			M.split_strategy = strategy
 
-			if effective_split_strategy == "narrow" then
-				handle_narrow_split(filepath, current_grid_win)
-			else
-				handle_wide_split(filepath, current_grid_win)
-			end
+			if strategy == "narrow" then handle_narrow_split(filepath, current_grid_win) else handle_wide_split(filepath, current_grid_win) end
 		end
-
 		notes.build_cache()
 	end
 end
@@ -585,139 +539,64 @@ end
 local function toggle_periods_display()
 	M.periods_enabled = not M.periods_enabled
 	render_grid()
-	local status = M.periods_enabled and "enabled" or "disabled"
-	vim.notify("Period colors " .. status, vim.log.levels.INFO)
+	vim.notify("Period colors " .. (M.periods_enabled and "enabled" or "disabled"), vim.log.levels.INFO)
 end
 
 local function toggle_period_filter()
 	M.filter_long_periods = not M.filter_long_periods
 	render_grid()
-	local status = M.filter_long_periods and "enabled" or "disabled"
-	vim.notify("Long period filter " .. status, vim.log.levels.INFO)
+	vim.notify("Long period filter " .. (M.filter_long_periods and "enabled" or "disabled"), vim.log.levels.INFO)
 end
 
 local function close_all_note_splits()
-	if #M.note_win_ids == 0 then
-		vim.notify("No note splits to close.", vim.log.levels.INFO)
-		return
-	end
+	if #M.note_win_ids == 0 then return end
 	local original_win = vim.api.nvim_get_current_win()
-	local had_error = false
-	local closed_count = 0
-	local win_ids_copy = {}
-	for _, id in ipairs(M.note_win_ids) do table.insert(win_ids_copy, id) end
-
-	for _, win_id in ipairs(win_ids_copy) do
-		if vim.api.nvim_win_is_valid(win_id) then
-			local success, err = pcall(vim.api.nvim_win_close, win_id, false)
-			if success then
-				closed_count = closed_count + 1
-			else
-				had_error = true
-			end
-		end
+	for _, win_id in ipairs(M.note_win_ids) do
+		if vim.api.nvim_win_is_valid(win_id) then pcall(vim.api.nvim_win_close, win_id, false) end
 	end
 	M.split_strategy = nil
 	vim.api.nvim_set_current_win(original_win)
-	if had_error then
-		vim.notify("Could not close some splits (they may have unsaved changes).", vim.log.levels.WARN)
-	elseif closed_count > 0 then
-		vim.notify("Closed " .. closed_count .. " note split(s).", vim.log.levels.INFO)
-	end
 end
 
 local function write_and_close_all_note_splits()
-	if #M.note_win_ids == 0 then
-		vim.notify("No note splits to close.", vim.log.levels.INFO)
-		return
-	end
+	if #M.note_win_ids == 0 then return end
 	local original_win = vim.api.nvim_get_current_win()
-	local closed_count = 0
-	local win_ids_copy = {}
-	for _, id in ipairs(M.note_win_ids) do table.insert(win_ids_copy, id) end
-
-	for _, win_id in ipairs(win_ids_copy) do
+	for _, win_id in ipairs(M.note_win_ids) do
 		if vim.api.nvim_win_is_valid(win_id) then
-			local buf_id = vim.api.nvim_win_get_buf(win_id)
-			vim.api.nvim_buf_call(buf_id, function()
-				vim.cmd('write')
-			end)
+			vim.api.nvim_buf_call(vim.api.nvim_win_get_buf(win_id), function() vim.cmd('write') end)
 			vim.api.nvim_win_close(win_id, false)
-			closed_count = closed_count + 1
 		end
 	end
 	M.split_strategy = nil
 	vim.api.nvim_set_current_win(original_win)
-	if closed_count > 0 then
-		vim.notify("Saved and closed " .. closed_count .. " note split(s).", vim.log.levels.INFO)
-	end
 end
 
 local function toggle_note_split_mode()
 	local cfg = config.get()
-	if cfg.note_split_mode == "split" then
-		cfg.note_split_mode = "reuse"
-		vim.notify("Note split mode: Reuse (single note)", vim.log.levels.INFO)
-	else
-		cfg.note_split_mode = "split"
-		vim.notify("Note split mode: Split (multiple notes)", vim.log.levels.INFO)
-	end
-	if #M.note_win_ids > 0 then
-		close_all_note_splits()
-	end
+	cfg.note_split_mode = cfg.note_split_mode == "split" and "reuse" or "split"
+	vim.notify("Note split mode: " .. cfg.note_split_mode, vim.log.levels.INFO)
+	if #M.note_win_ids > 0 then close_all_note_splits() end
 end
 
 local function confirm_delete_note()
 	local day_idx = find_day_at_cursor()
-	if not day_idx or not M.days[day_idx] then
-		vim.notify("No day selected.", vim.log.levels.WARN)
-		return
-	end
+	if not day_idx or not M.days[day_idx] then return end
 
 	local day = M.days[day_idx]
-	if not notes.note_exists(day.date) then
-		vim.notify("No note exists for " .. day.date, vim.log.levels.INFO)
-		return
-	end
+	if not notes.note_exists(day.date) then return end
 
 	vim.ui.input({ prompt = "Delete note for " .. day.date .. "? (y/n): ", default = "n" }, function(input)
-		if input and (input:lower() == "y" or input:lower() == "yes") then
-			local cfg = config.get()
-			local filepath = cfg.daily_notes_path .. "/" .. day.date .. ".md"
-
-			local original_win = vim.api.nvim_get_current_win()
-			local wins_to_close = {}
+		if input and input:lower():sub(1,1) == "y" then
+			local filepath = config.get().daily_notes_path .. "/" .. day.date .. ".md"
 			for _, win_id in ipairs(M.note_win_ids) do
-				if vim.api.nvim_win_is_valid(win_id) then
-					local buf_id = vim.api.nvim_win_get_buf(win_id)
-					local buf_name = vim.api.nvim_buf_get_name(buf_id)
-					if buf_name == filepath then
-						table.insert(wins_to_close, win_id)
-					end
+				if vim.api.nvim_win_is_valid(win_id) and vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(win_id)) == filepath then
+					vim.api.nvim_win_close(win_id, true)
 				end
 			end
-
-			for _, win_id in ipairs(wins_to_close) do
-				vim.api.nvim_win_close(win_id, true)
-			end
-			local valid = {}
-			for _, win_id in ipairs(M.note_win_ids) do
-				if vim.api.nvim_win_is_valid(win_id) then
-					table.insert(valid, win_id)
-				end
-			end
-			M.note_win_ids = valid
-			vim.api.nvim_set_current_win(original_win)
-
 			if notes.delete_note(day.date) then
-				vim.notify("Note for " .. day.date .. " deleted.", vim.log.levels.INFO)
 				render_grid()
 				if M.preview_enabled then show_note_preview() end
-			else
-				vim.notify("Failed to delete note for " .. day.date, vim.log.levels.ERROR)
 			end
-		else
-			vim.notify("Note deletion cancelled.", vim.log.levels.INFO)
 		end
 	end)
 end
@@ -734,37 +613,16 @@ local function open_tag_picker()
 
 	local tracked = cfg.tracked_tags or { deadline = { label = "Deadlines", icon = "❗", order = 1 } }
 	local tag_keys = vim.tbl_keys(tracked)
-	table.sort(tag_keys, function(a, b)
-		return (tracked[a].order or 99) < (tracked[b].order or 99)
-	end)
+	table.sort(tag_keys, function(a, b) return (tracked[a].order or 99) < (tracked[b].order or 99) end)
 
-	if #tag_keys == 0 then
-		vim.notify("No tracked_tags configured.", vim.log.levels.WARN)
-		return
-	end
-
-local function build_items(tag, filter_state, year_filter)
+	local function build_items(tag, filter_state, year_filter)
 		local items = {}
 		for _, dl in ipairs(notes.get_tagged_notes(tag)) do
+			if year_filter and dl.date:match("^(%d%d%d%d)") ~= os.date("%Y") then goto continue end
 			local days_left = grid.days_between(grid.parse_date(today), grid.parse_date(dl.date))
 			
-			if year_filter then
-				local item_year = dl.date:match("^(%d%d%d%d)")
-				if tonumber(item_year) ~= tonumber(os.date("%Y")) then
-					goto continue
-				end
-			end
-			
-			local is_valid = (filter_state == "all") 
-				or (filter_state == "expired" and days_left < 0) 
-				or (filter_state == "upcoming" and days_left >= 0)
-
-			if is_valid then
-				local status
-				if days_left < 0 then status = "EXPIRED"
-				elseif days_left <= 7 then status = "THIS WEEK"
-				else status = "UPCOMING" end
-				
+			if (filter_state == "all") or (filter_state == "expired" and days_left < 0) or (filter_state == "upcoming" and days_left >= 0) then
+				local status = days_left < 0 and "EXPIRED" or (days_left <= 7 and "THIS WEEK" or "UPCOMING")
 				table.insert(items, {
 					display   = string.format("%-10s  %-12s  %s (%+d days)", status, dl.date, dl.title, days_left),
 					filepath  = cfg.daily_notes_path .. "/" .. dl.date .. ".md",
@@ -774,84 +632,45 @@ local function build_items(tag, filter_state, year_filter)
 			end
 			::continue::
 		end
-		
 		table.sort(items, function(a, b)
-			if a.days_left < 0 and b.days_left >= 0 then return false end
-			if a.days_left >= 0 and b.days_left < 0 then return true end
+			if (a.days_left < 0) ~= (b.days_left < 0) then return a.days_left >= 0 end
 			return a.days_left < b.days_left
 		end)
 		return items
 	end
 
 	local function launch(idx, filter_state, year_filter)
-		local tag     = tag_keys[idx]
+		local tag = tag_keys[idx]
 		local tag_cfg = tracked[tag] or {}
-		local icon    = tag_cfg.icon or ""
-		local label   = tag_cfg.label or tag
-		
-		-- Cycle-Logik für <C-e>
-local next_state = filter_state == "upcoming" and "expired" or (filter_state == "expired" and "all" or "upcoming")
-
-		local title   = string.format("%s %s [%s]  <C-t>: tag  <C-e>: %s  <C-r>: range",
-			icon, label,
-			year_filter and os.date("%Y") or "all",
-			filter_state)
+		local next_state = filter_state == "upcoming" and "expired" or (filter_state == "expired" and "all" or "upcoming")
 
 		pickers.new({}, {
-			prompt_title = title,
-			finder = finders.new_table({
-				results = build_items(tag, filter_state, year_filter),
-				entry_maker = function(item)
-					return { value = item, display = item.display, ordinal = item.display, path = item.filepath }
-				end,
-			}),
+			prompt_title = string.format("%s %s [%s]  <C-t>: tag  <C-e>: %s  <C-r>: range", tag_cfg.icon or "", tag_cfg.label or tag, year_filter and os.date("%Y") or "all", filter_state),
+			finder = finders.new_table({ results = build_items(tag, filter_state, year_filter), entry_maker = function(item) return { value = item, display = item.display, ordinal = item.display, path = item.filepath } end }),
 			previewer = conf.file_previewer({}),
 			sorter    = conf.generic_sorter({}),
 			attach_mappings = function(prompt_bufnr, map)
 				map("i", "<CR>", function()
 					local sel = state.get_selected_entry()
 					actions.close(prompt_bufnr)
-					
-					local filepath = sel.value.filepath
 					local current_grid_win = M.win
 					vim.api.nvim_set_current_win(current_grid_win)
-
-					local valid = {}
-					for _, win_id in ipairs(M.note_win_ids) do
-						if vim.api.nvim_win_is_valid(win_id) then table.insert(valid, win_id) end
-					end
-					M.note_win_ids = valid
-
-					local current_cfg = config.get()
-					if current_cfg.note_split_mode == "reuse" and #M.note_win_ids > 0 then
-						local buf = vim.fn.bufnr(filepath, true)
+					
+					if config.get().note_split_mode == "reuse" and #M.note_win_ids > 0 then
+						local buf = vim.fn.bufnr(sel.value.filepath, true)
 						vim.api.nvim_win_set_buf(M.note_win_ids[1], buf)
 						vim.api.nvim_buf_call(buf, function() vim.cmd("edit") end)
 						vim.api.nvim_set_current_win(M.note_win_ids[1])
 					else
-						local effective_split = M.split_strategy or (vim.api.nvim_win_get_width(current_grid_win) <= 120 and "narrow" or "wide")
-						M.split_strategy = effective_split
-
-						if effective_split == "narrow" then
-							handle_narrow_split(filepath, current_grid_win)
-						else
-							handle_wide_split(filepath, current_grid_win)
-						end
+						local strategy = M.split_strategy or (vim.api.nvim_win_get_width(current_grid_win) <= 120 and "narrow" or "wide")
+						M.split_strategy = strategy
+						if strategy == "narrow" then handle_narrow_split(sel.value.filepath, current_grid_win) else handle_wide_split(sel.value.filepath, current_grid_win) end
 						vim.api.nvim_set_current_win(M.note_win_ids[#M.note_win_ids])
 					end
 				end)
-				map("i", "<C-e>", function()
-					actions.close(prompt_bufnr)
-					launch(idx, next_state, year_filter)
-				end)
-				map("i", "<C-t>", function()
-					actions.close(prompt_bufnr)
-					launch((idx % #tag_keys) + 1, filter_state, year_filter)
-				end)
-				map("i", "<C-r>", function()
-					actions.close(prompt_bufnr)
-					launch(idx, filter_state, not year_filter)
-				end)
+				map("i", "<C-e>", function() actions.close(prompt_bufnr) launch(idx, next_state, year_filter) end)
+				map("i", "<C-t>", function() actions.close(prompt_bufnr) launch((idx % #tag_keys) + 1, filter_state, year_filter) end)
+				map("i", "<C-r>", function() actions.close(prompt_bufnr) launch(idx, filter_state, not year_filter) end)
 				return true
 			end,
 		}):find()
@@ -862,8 +681,6 @@ end
 
 local function setup_keymaps()
 	local buf = M.buf
-
-	-- <Plug> definitions: noremap, buffer-local
 	local popts = { buffer = buf, noremap = true, silent = true }
 
 	local function jump_to_today()
@@ -882,14 +699,7 @@ local function setup_keymaps()
 	end
 
 	vim.keymap.set("n", "<Plug>(recollect-quit)", function() M.close() end, popts)
-	vim.keymap.set("n", "<Plug>(recollect-recurring)", function()
-		recurring.open({
-			on_close = function()
-				recurring.load()
-				render_grid()
-			end
-		})
-	end, popts)
+	vim.keymap.set("n", "<Plug>(recollect-recurring)", function() recurring.open({ on_close = function() recurring.load() render_grid() end }) end, popts)
 	vim.keymap.set("n", "<Plug>(recollect-tag-picker)", open_tag_picker, popts)
 	vim.keymap.set("n", "<Plug>(recollect-close-splits)", close_all_note_splits, popts)
 	vim.keymap.set("n", "<Plug>(recollect-write-splits)", write_and_close_all_note_splits, popts)
@@ -900,14 +710,7 @@ local function setup_keymaps()
 	vim.keymap.set("n", "<Plug>(recollect-preview)", toggle_note_preview, popts)
 	vim.keymap.set("n", "<Plug>(recollect-toggle-periods)", toggle_periods_display, popts)
 	vim.keymap.set("n", "<Plug>(recollect-filter-periods)", toggle_period_filter, popts)
-
-	vim.keymap.set("n", "<Plug>(recollect-refresh)", function()
-		notes.build_cache()
-		M.days, M.days_lived = grid.generate_life_days()
-		render_grid()
-		vim.notify("Recollect refreshed", vim.log.levels.INFO)
-	end, popts)
-
+	vim.keymap.set("n", "<Plug>(recollect-refresh)", function() notes.build_cache() M.days, M.days_lived = grid.generate_life_days() render_grid() end, popts)
 	vim.keymap.set("n", "<Plug>(recollect-search-date)", function()
 		vim.ui.input({ prompt = "Jump to date (YYYY-MM-DD): " }, function(input)
 			if not input then return end
@@ -920,13 +723,11 @@ local function setup_keymaps()
 							vim.cmd("normal! zz")
 							render_grid()
 							if M.preview_enabled then show_note_preview() end
-							vim.notify("Jumped to " .. input, vim.log.levels.INFO)
 							return
 						end
 					end
 				end
 			end
-			vim.notify("Date not found: " .. input, vim.log.levels.WARN)
 		end)
 	end, popts)
 
@@ -947,26 +748,13 @@ local function setup_keymaps()
 		local cfg = config.get()
 		cfg.grid_mode = "year"
 		local day_idx = find_day_at_cursor()
-		if day_idx and M.days[day_idx] then
-			M.current_year_view = M.days[day_idx].year
-		else
-			M.current_year_view = tonumber(os.date("%Y"))
-		end
+		M.current_year_view = (day_idx and M.days[day_idx]) and M.days[day_idx].year or tonumber(os.date("%Y"))
 		M.days, M.days_lived = grid.generate_year_days(M.current_year_view)
 		render_grid()
 		jump_to_today()
 	end, popts)
 
-	vim.keymap.set("n", "<Plug>(recollect-manage-periods)", function()
-		periods.open({
-			on_close = function()
-				M.days, M.days_lived = grid.generate_life_days()
-				render_grid()
-				vim.notify("Recollect refreshed", vim.log.levels.INFO)
-			end
-		})
-	end, popts)
-
+	vim.keymap.set("n", "<Plug>(recollect-manage-periods)", function() periods.open({ on_close = function() M.days, M.days_lived = grid.generate_life_days() render_grid() end }) end, popts)
 	vim.keymap.set("n", "<Plug>(recollect-prev-note)", function()
 		local current_idx = find_day_at_cursor() or 1
 		for i = current_idx - 1, 1, -1 do
@@ -977,13 +765,11 @@ local function setup_keymaps()
 						vim.cmd("normal! zz")
 						render_grid()
 						if M.preview_enabled then show_note_preview() end
-						vim.notify("Jumped to previous note: " .. M.days[i].date, vim.log.levels.INFO)
 						return
 					end
 				end
 			end
 		end
-		vim.notify("No previous note found", vim.log.levels.WARN)
 	end, popts)
 
 	vim.keymap.set("n", "<Plug>(recollect-next-note)", function()
@@ -996,43 +782,24 @@ local function setup_keymaps()
 						vim.cmd("normal! zz")
 						render_grid()
 						if M.preview_enabled then show_note_preview() end
-						vim.notify("Jumped to next note: " .. M.days[i].date, vim.log.levels.INFO)
 						return
 					end
 				end
 			end
 		end
-		vim.notify("No next note found", vim.log.levels.WARN)
 	end, popts)
 
 	vim.keymap.set("n", "<Plug>(recollect-search-content)", function()
 		local cfg = config.get()
-		local current_win_width = vim.api.nvim_win_get_width(0)
-		local vertical_preview_threshold = 120
-		local previewer_config = {}
-		if current_win_width > vertical_preview_threshold then
-			previewer_config = {
-				layout_strategy = "horizontal",
-				layout_config = { horizontal = { width = 0.5, height = 0.8, preview_height = 0.7 } },
-			}
-		else
-			previewer_config = {
-				layout_strategy = "vertical",
-				layout_config = { vertical = { width = 0.9, height = 0.9, preview_width = 0.7, preview_height = 0.7 } },
-			}
-		end
 		require('telescope.builtin').live_grep({
 			cwd = cfg.daily_notes_path,
 			prompt_title = "Search Notes Content",
-			layout_strategy = previewer_config.layout_strategy,
-			layout_config = previewer_config.layout_config,
 			attach_mappings = function(_, map)
 				map('i', '<CR>', function(prompt_bufnr)
 					local selection = require('telescope.actions.state').get_selected_entry()
 					require('telescope.actions').close(prompt_bufnr)
 					if selection then
-						local filepath = selection.filename
-						local date = filepath:match("(%d%d%d%d%-%d%d%-%d%d)%.md$")
+						local date = selection.filename:match("(%d%d%d%d%-%d%d%-%d%d)%.md$")
 						if date then
 							for i, day in ipairs(M.days) do
 								if day.date == date then
@@ -1048,7 +815,7 @@ local function setup_keymaps()
 								end
 							end
 						end
-						vim.cmd("edit " .. filepath)
+						vim.cmd("edit " .. selection.filename)
 					end
 				end)
 				return true
@@ -1057,70 +824,14 @@ local function setup_keymaps()
 	end, popts)
 
 	vim.keymap.set("n", "<Plug>(recollect-help)", function()
-		local help_lines = {
-			"  ╔═══════════════════════════════════════╗",
-			"  ║           Recollect HELP              ║",
-			"  ╚═══════════════════════════════════════╝",
-			"",
-			"Navigation:",
-			"  j/k/b/w     - Move cursor",
-			"  <C-d>/<C-u> - Scroll half page",
-			"  t           - Jump to today",
-			"  /           - Search date (YYYY-MM-DD)",
-			"  [           - Jump to previous note",
-			"  ]           - Jump to next note",
-			"",
-			"Actions:",
-			"  <Enter>     - Open in split",
-			"  D           - Delete note",
-			"  f           - Fuzzy search notes content",
-			"  r           - Refresh cache",
-			"  x           - :q all splits ",
-			"  X           - :wq all splits ",
-			"  m           - Manage periods",
-			"  E           - Manage recurring events",
-			"  T           - Tag Picker",
-			"",
-			"Toggles:",
-			"  s           - Toggle split behaviour ",
-			"  p           - Toggle note preview",
-			"  Y           - Toggle year view",
-			"  g           - Toggle Calendar/Year grid",
-			"  P           - Toggle period colors",
-			"",
-			"Other:",
-			"  q           - Close Recollect",
-			"  ?           - Show this help",
-			"",
-			"Press any key to close...",
-		}
-
+		local help_lines = { "  Recollect HELP", "", "j/k - Move", "t - Today", "/ - Date search", "Enter - Split", "p - Preview", "q - Quit", "Press any key to close..." }
 		local help_buf = vim.api.nvim_create_buf(false, true)
-		local help_win = vim.api.nvim_open_win(help_buf, true, {
-			relative = "editor",
-			width = 45,
-			height = #help_lines,
-			col = math.floor((vim.o.columns - 45) / 2),
-			row = math.floor((vim.o.lines - #help_lines) / 2),
-			style = "minimal",
-			border = "rounded",
-		})
-
+		local help_win = vim.api.nvim_open_win(help_buf, true, { relative = "editor", width = 45, height = #help_lines, col = math.floor((vim.o.columns - 45) / 2), row = math.floor((vim.o.lines - #help_lines) / 2), style = "minimal", border = "rounded" })
 		vim.api.nvim_buf_set_lines(help_buf, 0, -1, false, help_lines)
-		vim.api.nvim_buf_set_option(help_buf, "modifiable", false)
-
-		vim.keymap.set("n", "<CR>", function()
-			vim.api.nvim_win_close(help_win, true)
-		end, { buffer = help_buf, nowait = true })
-
-		vim.keymap.set("n", "q", function()
-			vim.api.nvim_win_close(help_win, true)
-		end, { buffer = help_buf, nowait = true })
+		vim.keymap.set("n", "q", function() vim.api.nvim_win_close(help_win, true) end, { buffer = help_buf })
 	end, popts)
 
-	-- Default key → <Plug> bindings (remap = true so they follow through)
 	local opts = { buffer = buf, remap = true, nowait = true, silent = true }
-
 	vim.keymap.set("n", "q",     "<Plug>(recollect-quit)",            opts)
 	vim.keymap.set("n", "x",     "<Plug>(recollect-close-splits)",    opts)
 	vim.keymap.set("n", "X",     "<Plug>(recollect-write-splits)",    opts)
@@ -1132,7 +843,6 @@ local function setup_keymaps()
 	vim.keymap.set("n", "/",     "<Plug>(recollect-search-date)",     opts)
 	vim.keymap.set("n", "p",     "<Plug>(recollect-preview)",         opts)
 	vim.keymap.set("n", "P",     "<Plug>(recollect-toggle-periods)",  opts)
-	vim.keymap.set("n", "R",     "<Plug>(recollect-filter-periods)",  opts)
 	vim.keymap.set("n", "g",     "<Plug>(recollect-toggle-grid)",     opts)
 	vim.keymap.set("n", "Y",     "<Plug>(recollect-year-view)",       opts)
 	vim.keymap.set("n", "m",     "<Plug>(recollect-manage-periods)",  opts)
@@ -1142,14 +852,6 @@ local function setup_keymaps()
 	vim.keymap.set("n", "f",     "<Plug>(recollect-search-content)",  opts)
 	vim.keymap.set("n", "?",     "<Plug>(recollect-help)",            opts)
 	vim.keymap.set("n", "T",     "<Plug>(recollect-tag-picker)",       opts)
-
-	-- Pass-through movement (no <Plug> needed, just ensure they work in this buffer)
-	vim.keymap.set("n", "j",     "j",     { buffer = buf, nowait = true, silent = true })
-	vim.keymap.set("n", "k",     "k",     { buffer = buf, nowait = true, silent = true })
-	vim.keymap.set("n", "h",     "h",     { buffer = buf, nowait = true, silent = true })
-	vim.keymap.set("n", "l",     "l",     { buffer = buf, nowait = true, silent = true })
-	vim.keymap.set("n", "<C-d>", "<C-d>", { buffer = buf, nowait = true, silent = true })
-	vim.keymap.set("n", "<C-u>", "<C-u>", { buffer = buf, nowait = true, silent = true })
 end
 
 function M.open()
@@ -1178,21 +880,29 @@ function M.open()
 	render_grid()
 	setup_keymaps()
 
-
 	M.date_buf = vim.api.nvim_create_buf(false, true)
 	vim.api.nvim_buf_set_option(M.date_buf, 'buftype', 'nofile')
 	vim.api.nvim_buf_set_option(M.date_buf, 'bufhidden', 'wipe')
-	M.date_win = vim.api.nvim_open_win(M.date_buf, false, {
-		relative = 'editor',
-		row = 19,
-		col = 80,
-		width = 22,
-		height = 10,
-		style = 'minimal',
-		border = 'none',
-		focusable = false,
-	})
-	vim.api.nvim_win_set_option(M.date_win, 'winhl', 'Normal:Normal,NormalFloat:Normal,FloatBorder:Normal')
+
+local bar_pos = cfg.bar_position or "top"
+local bar_offset = cfg.bar_offset or 0
+local bar_row = bar_pos == "bottom"
+    and (vim.o.lines - 2 - bar_offset)
+    or  (0 + bar_offset)
+
+	-- bar cnf
+M.date_win = vim.api.nvim_open_win(M.date_buf, false, {
+    relative  = 'editor',
+    row       = bar_row,
+    col       = 0,
+    width     = vim.o.columns,
+    height    = 1,
+    style     = 'minimal',
+    border    = 'none',
+    focusable = false,
+    zindex    = 50,
+})
+	vim.api.nvim_win_set_option(M.date_win, 'winhl', 'Normal:recollectTopBar')
 
 	vim.api.nvim_create_autocmd("CursorMoved", {
 		buffer = M.buf,
@@ -1202,13 +912,10 @@ function M.open()
 		end,
 	})
 
-	vim.api.nvim_create_autocmd("WinClosed", {
-		callback = function(args)
-			for i, win_id in ipairs(M.note_win_ids) do
-				if win_id == args.winid then
-					table.remove(M.note_win_ids, i)
-					break
-				end
+	vim.api.nvim_create_autocmd("VimResized", {
+		callback = function()
+			if M.date_win and vim.api.nvim_win_is_valid(M.date_win) then
+				vim.api.nvim_win_set_config(M.date_win, { width = vim.o.columns })
 			end
 		end,
 	})
@@ -1229,31 +936,11 @@ end
 
 function M.close()
 	if M.win and vim.api.nvim_win_is_valid(M.win) then
-		if M.buf and vim.api.nvim_buf_is_valid(M.buf) then
-			vim.api.nvim_buf_delete(M.buf, { force = true })
-		end
+		if M.buf and vim.api.nvim_buf_is_valid(M.buf) then vim.api.nvim_buf_delete(M.buf, { force = true }) end
 	end
-	if M.preview_win and vim.api.nvim_win_is_valid(M.preview_win) then
-		vim.api.nvim_win_close(M.preview_win, true)
-	end
-	if M.preview_buf and vim.api.nvim_buf_is_valid(M.preview_buf) then
-		vim.api.nvim_buf_delete(M.preview_buf, { force = true })
-	end
-	if M.date_win and vim.api.nvim_win_is_valid(M.date_win) then
-		vim.api.nvim_win_close(M.date_win, true)
-	end
-	if M.date_buf and vim.api.nvim_buf_is_valid(M.date_buf) then
-		vim.api.nvim_buf_delete(M.date_buf, { force = true })
-	end
-	M.buf = nil
-	M.win = nil
-	M.preview_buf = nil
-	M.preview_win = nil
-	M.date_buf = nil
-	M.date_win = nil
-	M.preview_enabled = false
-	M.note_win_ids = {}
-	M.split_strategy = nil
+	if M.preview_win and vim.api.nvim_win_is_valid(M.preview_win) then vim.api.nvim_win_close(M.preview_win, true) end
+	if M.date_win and vim.api.nvim_win_is_valid(M.date_win) then vim.api.nvim_win_close(M.date_win, true) end
+	M.buf, M.win, M.preview_buf, M.preview_win, M.date_buf, M.date_win = nil, nil, nil, nil, nil, nil
 end
 
 return M

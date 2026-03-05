@@ -28,6 +28,7 @@ date: %s
   periods = {
     -- ...
   },
+	bar_position = "top", -- "top" or "bottom",
   tag_symbols = {
     birthday = "🎂",
     event = "🎉",

@@ -83,7 +83,9 @@ return {
 		require("recollect").setup({
 			-- All configuration options are optional.
 			-- Below are some examples you can override.
-
+            -- conf where your bar will be, top/bottom available you +/- lines to adjust incase you have other bars! 
+			bar_position = "bottom", -- or "top"
+			bar_offset = -1, -- move bar lines up/down. -1 is rock-bottom.
 			-- The path where .json files (recurring events etc.) get stored
 			data_dir = vim.fn.expand("~") .. "/Documents/recollect-data",
 			-- The start date for your grid.
