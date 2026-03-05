@@ -2,6 +2,7 @@
 local M = {}
 local config = require("recollect.config")
 local scan = require("plenary.scandir")
+local recurring = require("recollect.recurring")
 
 -- Cache for note existence
 M.note_cache = {}
@@ -98,12 +99,29 @@ function M.note_exists(date_str)
   return M.note_cache[date_str] == true
 end
 
--- Get note metadata
+-- Get note metadata (real file + recurring virtual metadata merged)
 function M.get_metadata(date_str)
   if not next(M.note_metadata) then
     M.build_cache()
   end
-  return M.note_metadata[date_str] or {}
+  local meta = vim.deepcopy(M.note_metadata[date_str] or {})
+
+  local virt = recurring.get_virtual_metadata(date_str)
+  if virt then
+    if not meta.tags then
+      meta.tags = virt.tags
+    else
+      local existing = type(meta.tags) == "string" and { meta.tags } or meta.tags
+      for _, t in ipairs(virt.tags) do
+        table.insert(existing, t)
+      end
+      meta.tags = existing
+    end
+    if not meta.title then meta.title = virt.title end
+    meta._recurring = true
+  end
+
+  return meta
 end
 
 -- Create or open daily note
@@ -149,6 +167,33 @@ function M.delete_note(date_str)
     return true
   end
   return false
+end
+
+function M.get_tagged_notes(tag)
+  if not next(M.note_metadata) then M.build_cache() end
+  local results = {}
+  for date_str, meta in pairs(M.note_metadata) do
+    local tags = meta.tags
+    if type(tags) == "string" then tags = { tags } end
+    if type(tags) == "table" then
+      for _, t in ipairs(tags) do
+        if t == tag then
+          table.insert(results, {
+            date     = date_str,
+            deadline = meta.deadline or date_str,
+            title    = meta.title or "Kein Titel", -- Zieht den Titel oder setzt einen Platzhalter
+          })
+          break
+        end
+      end
+    end
+  end
+  return results
+end
+
+-- backward compat
+function M.get_deadlines()
+  return M.get_tagged_notes("deadline")
 end
 
 return M

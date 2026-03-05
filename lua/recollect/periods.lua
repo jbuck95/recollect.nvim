@@ -10,7 +10,10 @@ M.selected_period = 1
 M.on_close_callback = nil
 
 local function get_config_path()
-  return vim.fn.stdpath("config") .. "/recollect.json"
+  local cfg = config.get()
+  local dir = cfg.data_dir or vim.fn.stdpath("config")
+  vim.fn.mkdir(dir, "p")
+  return dir .. "/recollect.json"
 end
 
 function M.load_periods()

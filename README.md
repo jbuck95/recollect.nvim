@@ -77,83 +77,89 @@ you can always press '?' for help.
 ```lua
 -- ~/.config/nvim/lua/plugins/recollect.lua
 return {
-  "jbuck95/recollect.nvim",
-  dependencies = { "nvim-lua/plenary.nvim" },
-  config = function()
-    require("recollect").setup({
-      -- All configuration options are optional.
-      -- Below are some examples you can override.
-      
-      -- The start date for your grid.
-      birthday = "1990-01-01",
-      
-      -- The path to your daily notes folder.
-      -- IMPORTANT: Make sure to change this to your actual notes path.
-      daily_notes_path = vim.fn.expand("~") .. "/Documents/Notes/Dailies",
-      
-      -- A function to generate the content for a new daily note.
-      note_template = function(date_str)
-        local year, month, day = date_str:match("(%d+)-(%d+)-(%d+)")
-        local date_obj = os.time({year=tonumber(year), month=tonumber(month), day=tonumber(day)})
-        
-        local weekdays = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}
-        local months = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"}
-        
-        local wday = tonumber(os.date("%w", date_obj)) + 1
-        local formatted_date = string.format("%s, %d %s %s", weekdays[wday], tonumber(day), months[tonumber(month)], year)
-        
-        return string.format([[---
+	"jbuck95/recollect.nvim",
+	dependencies = { "nvim-lua/plenary.nvim" },
+	config = function()
+		require("recollect").setup({
+			-- All configuration options are optional.
+			-- Below are some examples you can override.
+
+			-- The path where .json files (recurring events etc.) get stored
+			data_dir = vim.fn.expand("~") .. "/Documents/recollect-data",
+			-- The start date for your grid.
+			birthday = "1990-01-01",
+			-- add Tags you can sort in the Tag picker. Order them aswell...
+			tracked_tags = {
+				deadline = { label = "Deadlines", icon = "❗", order = 1 },
+				birthday = { label = "Birthdays", icon = "🎂", order = 2 },
+			},
+			-- The path to your daily notes folder.
+			-- IMPORTANT: Make sure to change this to your actual notes path.
+			daily_notes_path = vim.fn.expand("~") .. "/Documents/Notes/Dailies",
+
+			-- A function to generate the content for a new daily note.
+			note_template = function(date_str)
+				local year, month, day = date_str:match("(%d+)-(%d+)-(%d+)")
+				local date_obj = os.time({year=tonumber(year), month=tonumber(month), day=tonumber(day)})
+
+				local weekdays = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}
+				local months = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"}
+
+				local wday = tonumber(os.date("%w", date_obj)) + 1
+				local formatted_date = string.format("%s, %d %s %s", weekdays[wday], tonumber(day), months[tonumber(month)], year)
+
+				return string.format([[---
 date: %s
 ---
 ### %s
 
 
 ]], date_str, formatted_date)
-      end,
+			end,
 
-      -- You can define custom time periods that get highlighted in the grid.
-      -- periods = {
-        {
-          start = "2020-03-11",
-          finish = "2022-05-01",
-          color = "red",
-          label = "Pandemic"
-        },
-      },
+			-- You can define custom time periods that get highlighted in the grid.
+			-- periods = {
+			{
+				start = "2020-03-11",
+				finish = "2022-05-01",
+				color = "red",
+				label = "Pandemic"
+			},
+		},
 
-      -- Symbols used for notes that have a specific tag in their YAML frontmatter.
-      tag_symbols = {
-        birthday = "🎂",
-        event = "🎉",
-        gym = "💪🏼",
-        trip = "✈️",
-        holiday = "☘",
-        party = "🍻",
-        work = "💼",
-        project = "🛠️",
-        deadline = "❗",
-        health = "❤️",
-        special = "⭐",
-      },
+			-- Symbols used for notes that have a specific tag in their YAML frontmatter.
+			tag_symbols = {
+				birthday = "🎂",
+				event = "🎉",
+				gym = "💪🏼",
+				trip = "✈️",
+				holiday = "☘",
+				party = "🍻",
+				work = "💼",
+				project = "🛠️",
+				deadline = "❗",
+				health = "❤️",
+				special = "⭐",
+			},
 
-      -- Customize the colors of the grid.
-      colors = {
-        background = "#1e1e2e",
-        default_dot = "#45475a",
-        today_dot = "#f38ba8",
-        note_exists = "#a6e3a1",
-        grid_lines = "#313244",
-        text = "#cdd6f4",
-        year_header = "#89b4fa",
-        yellow = "#f9e2af",
-        blue = "#89b4fa",
-        green = "#a6e3a1",
-        red = "#f38ba8",
-        purple = "#cba6f7",
-        orange = "#fab387",
-      },
-    })
-    		-- Keymaps:
+			-- Customize the colors of the grid.
+			colors = {
+				background = "#1e1e2e",
+				default_dot = "#45475a",
+				today_dot = "#f38ba8",
+				note_exists = "#a6e3a1",
+				grid_lines = "#313244",
+				text = "#cdd6f4",
+				year_header = "#89b4fa",
+				yellow = "#f9e2af",
+				blue = "#89b4fa",
+				green = "#a6e3a1",
+				red = "#f38ba8",
+				purple = "#cba6f7",
+				orange = "#fab387",
+			},
+			})
+		-- Keymaps:
 		vim.keymap.set("n", "<leader>rc", "<cmd>Recollect<cr>", { desc = "Open Recollect" })
 		vim.api.nvim_create_autocmd("FileType", {
 			pattern = "recollect",
@@ -208,7 +214,7 @@ date: %s
 				map("q",    "<Plug>(recollect-periods-quit)",   "Close periods")
 			end,
 		})
-  end,
+	end,
 }
 ```
 
@@ -222,6 +228,7 @@ yaml-frontmatter example:
 ---
 id: testnote
 aliases: []
+title:      <- gets shown in floating menu if note contais a tracked tag
 tags:
   - deadline
   - work

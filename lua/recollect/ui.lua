@@ -3,6 +3,7 @@ local config = require("recollect.config")
 local grid = require("recollect.grid")
 local notes = require("recollect.notes")
 local periods = require("recollect.periods")
+local recurring = require("recollect.recurring")
 
 M.buf = nil
 M.win = nil
@@ -20,6 +21,7 @@ M.filter_long_periods = false
 M.current_year_view = nil
 M.note_win_ids = {}
 M.split_strategy = nil
+
 
 local function setup_highlights()
 	local cfg = config.get()
@@ -307,7 +309,39 @@ local function update_date_display()
 			days_diff_str = string.format("%d day%s", days_diff, days_diff == -1 and "" or "s")
 		end
 
-		local display_str = string.format(" %dY %02dM %02dD\n %s,\n %s\n %s", years, months, days, weekday, date_str, days_diff_str)
+		local display_str = string.format(" %s,\n %s\n\n %s\n %dY %02dM %02dD", weekday, date_str, days_diff_str, years, months, days)
+
+		local display_str = string.format(" %s,\n %s\n\n %s\n %dY %02dM %02dD", weekday, date_str, days_diff_str, years, months, days)
+
+		local has_note = notes.note_exists(date_str)
+		local real_meta = notes.note_metadata[date_str] or {}
+
+		if has_note then
+			local all_tags = real_meta.tags
+			if all_tags then
+				if type(all_tags) == "string" then all_tags = { all_tags } end
+				local tag_parts = {}
+				for _, t in ipairs(all_tags) do table.insert(tag_parts, "#" .. t) end
+				if #tag_parts > 0 then
+					display_str = display_str .. "\n\n " .. table.concat(tag_parts, "  ")
+				end
+			end
+			if real_meta.title then
+				display_str = display_str .. "\n " .. real_meta.title
+			end
+		else
+			local virt = recurring.get_virtual_metadata(date_str)
+			if virt then
+				local tag_parts = {}
+				for _, t in ipairs(virt.tags) do table.insert(tag_parts, "#" .. t) end
+				if #tag_parts > 0 then
+					display_str = display_str .. "\n\n " .. table.concat(tag_parts, "  ")
+				end
+				if virt.title then
+					display_str = display_str .. "\n " .. virt.title
+				end
+			end
+		end
 
 		vim.api.nvim_buf_set_lines(M.date_buf, 0, -1, false, vim.split(display_str, "\n"))
 	else
@@ -362,7 +396,7 @@ local function show_note_preview()
 
 	vim.api.nvim_buf_set_lines(M.preview_buf, 0, -1, false, vim.split(content, "\n"))
 	vim.api.nvim_buf_call(M.preview_buf, function()
-  	vim.cmd("lcd " .. vim.fn.fnameescape(cfg.daily_notes_path))
+		vim.cmd("lcd " .. vim.fn.fnameescape(cfg.daily_notes_path))
 	end)
 	local vertical_split_threshold = 120
 	local win_width = vim.api.nvim_win_get_width(M.win)
@@ -680,6 +714,144 @@ local function confirm_delete_note()
 	end)
 end
 
+local function open_tag_picker()
+	local pickers = require("telescope.pickers")
+	local finders = require("telescope.finders")
+	local conf    = require("telescope.config").values
+	local actions = require("telescope.actions")
+	local state   = require("telescope.actions.state")
+
+	local today = os.date("%Y-%m-%d")
+	local cfg   = config.get()
+
+	local tracked = cfg.tracked_tags or { deadline = { label = "Deadlines", icon = "❗", order = 1 } }
+	local tag_keys = vim.tbl_keys(tracked)
+	table.sort(tag_keys, function(a, b)
+		return (tracked[a].order or 99) < (tracked[b].order or 99)
+	end)
+
+	if #tag_keys == 0 then
+		vim.notify("No tracked_tags configured.", vim.log.levels.WARN)
+		return
+	end
+
+local function build_items(tag, filter_state, year_filter)
+		local items = {}
+		for _, dl in ipairs(notes.get_tagged_notes(tag)) do
+			local days_left = grid.days_between(grid.parse_date(today), grid.parse_date(dl.date))
+			
+			if year_filter then
+				local item_year = dl.date:match("^(%d%d%d%d)")
+				if tonumber(item_year) ~= tonumber(os.date("%Y")) then
+					goto continue
+				end
+			end
+			
+			local is_valid = (filter_state == "all") 
+				or (filter_state == "expired" and days_left < 0) 
+				or (filter_state == "upcoming" and days_left >= 0)
+
+			if is_valid then
+				local status
+				if days_left < 0 then status = "EXPIRED"
+				elseif days_left <= 7 then status = "THIS WEEK"
+				else status = "UPCOMING" end
+				
+				table.insert(items, {
+					display   = string.format("%-10s  %-12s  %s (%+d days)", status, dl.date, dl.title, days_left),
+					filepath  = cfg.daily_notes_path .. "/" .. dl.date .. ".md",
+					date      = dl.date,
+					days_left = days_left,
+				})
+			end
+			::continue::
+		end
+		
+		table.sort(items, function(a, b)
+			if a.days_left < 0 and b.days_left >= 0 then return false end
+			if a.days_left >= 0 and b.days_left < 0 then return true end
+			return a.days_left < b.days_left
+		end)
+		return items
+	end
+
+	local function launch(idx, filter_state, year_filter)
+		local tag     = tag_keys[idx]
+		local tag_cfg = tracked[tag] or {}
+		local icon    = tag_cfg.icon or ""
+		local label   = tag_cfg.label or tag
+		
+		-- Cycle-Logik für <C-e>
+local next_state = filter_state == "upcoming" and "expired" or (filter_state == "expired" and "all" or "upcoming")
+
+		local title   = string.format("%s %s [%s]  <C-t>: tag  <C-e>: %s  <C-r>: range",
+			icon, label,
+			year_filter and os.date("%Y") or "all",
+			filter_state)
+
+		pickers.new({}, {
+			prompt_title = title,
+			finder = finders.new_table({
+				results = build_items(tag, filter_state, year_filter),
+				entry_maker = function(item)
+					return { value = item, display = item.display, ordinal = item.display, path = item.filepath }
+				end,
+			}),
+			previewer = conf.file_previewer({}),
+			sorter    = conf.generic_sorter({}),
+			attach_mappings = function(prompt_bufnr, map)
+				map("i", "<CR>", function()
+					local sel = state.get_selected_entry()
+					actions.close(prompt_bufnr)
+					
+					local filepath = sel.value.filepath
+					local current_grid_win = M.win
+					vim.api.nvim_set_current_win(current_grid_win)
+
+					local valid = {}
+					for _, win_id in ipairs(M.note_win_ids) do
+						if vim.api.nvim_win_is_valid(win_id) then table.insert(valid, win_id) end
+					end
+					M.note_win_ids = valid
+
+					local current_cfg = config.get()
+					if current_cfg.note_split_mode == "reuse" and #M.note_win_ids > 0 then
+						local buf = vim.fn.bufnr(filepath, true)
+						vim.api.nvim_win_set_buf(M.note_win_ids[1], buf)
+						vim.api.nvim_buf_call(buf, function() vim.cmd("edit") end)
+						vim.api.nvim_set_current_win(M.note_win_ids[1])
+					else
+						local effective_split = M.split_strategy or (vim.api.nvim_win_get_width(current_grid_win) <= 120 and "narrow" or "wide")
+						M.split_strategy = effective_split
+
+						if effective_split == "narrow" then
+							handle_narrow_split(filepath, current_grid_win)
+						else
+							handle_wide_split(filepath, current_grid_win)
+						end
+						vim.api.nvim_set_current_win(M.note_win_ids[#M.note_win_ids])
+					end
+				end)
+				map("i", "<C-e>", function()
+					actions.close(prompt_bufnr)
+					launch(idx, next_state, year_filter)
+				end)
+				map("i", "<C-t>", function()
+					actions.close(prompt_bufnr)
+					launch((idx % #tag_keys) + 1, filter_state, year_filter)
+				end)
+				map("i", "<C-r>", function()
+					actions.close(prompt_bufnr)
+					launch(idx, filter_state, not year_filter)
+				end)
+				return true
+			end,
+		}):find()
+	end
+
+	launch(1, "upcoming", true)
+end
+
 local function setup_keymaps()
 	local buf = M.buf
 
@@ -702,6 +874,15 @@ local function setup_keymaps()
 	end
 
 	vim.keymap.set("n", "<Plug>(recollect-quit)", function() M.close() end, popts)
+	vim.keymap.set("n", "<Plug>(recollect-recurring)", function()
+		recurring.open({
+			on_close = function()
+				recurring.load()
+				render_grid()
+			end
+		})
+	end, popts)
+	vim.keymap.set("n", "<Plug>(recollect-tag-picker)", open_tag_picker, popts)
 	vim.keymap.set("n", "<Plug>(recollect-close-splits)", close_all_note_splits, popts)
 	vim.keymap.set("n", "<Plug>(recollect-write-splits)", write_and_close_all_note_splits, popts)
 	vim.keymap.set("n", "<Plug>(recollect-delete-note)", confirm_delete_note, popts)
@@ -889,6 +1070,8 @@ local function setup_keymaps()
 			"  x           - :q all splits ",
 			"  X           - :wq all splits ",
 			"  m           - Manage periods",
+			"  E           - Manage recurring events",
+			"  T           - Tag Picker",
 			"",
 			"Toggles:",
 			"  s           - Toggle split behaviour ",
@@ -945,10 +1128,12 @@ local function setup_keymaps()
 	vim.keymap.set("n", "g",     "<Plug>(recollect-toggle-grid)",     opts)
 	vim.keymap.set("n", "Y",     "<Plug>(recollect-year-view)",       opts)
 	vim.keymap.set("n", "m",     "<Plug>(recollect-manage-periods)",  opts)
+	vim.keymap.set("n", "E",     "<Plug>(recollect-recurring)",       opts)
 	vim.keymap.set("n", "[",     "<Plug>(recollect-prev-note)",       opts)
 	vim.keymap.set("n", "]",     "<Plug>(recollect-next-note)",       opts)
 	vim.keymap.set("n", "f",     "<Plug>(recollect-search-content)",  opts)
 	vim.keymap.set("n", "?",     "<Plug>(recollect-help)",            opts)
+	vim.keymap.set("n", "T",     "<Plug>(recollect-tag-picker)",       opts)
 
 	-- Pass-through movement (no <Plug> needed, just ensure they work in this buffer)
 	vim.keymap.set("n", "j",     "j",     { buffer = buf, nowait = true, silent = true })
@@ -985,6 +1170,7 @@ function M.open()
 	render_grid()
 	setup_keymaps()
 
+
 	M.date_buf = vim.api.nvim_create_buf(false, true)
 	vim.api.nvim_buf_set_option(M.date_buf, 'buftype', 'nofile')
 	vim.api.nvim_buf_set_option(M.date_buf, 'bufhidden', 'wipe')
@@ -993,12 +1179,12 @@ function M.open()
 		row = 19,
 		col = 80,
 		width = 12,
-		height = 4,
+		height = 10,
 		style = 'minimal',
-		border = 'shadow',
+		border = 'none',
 		focusable = false,
 	})
-	vim.api.nvim_win_set_option(M.date_win, 'winhl', 'Normal:recollectText,FloatBorder:recollectGridLines')
+	vim.api.nvim_win_set_option(M.date_win, 'winhl', 'Normal:Normal,NormalFloat:Normal,FloatBorder:Normal')
 
 	vim.api.nvim_create_autocmd("CursorMoved", {
 		buffer = M.buf,

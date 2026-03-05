@@ -3,6 +3,7 @@ local M = {}
 
 M.defaults = {
   birthday = "1990-01-01",
+	data_dir = nil,
   max_age = 95,
   grid_mode = "life", -- "life", "year", or "calendar"
   locale = "en_US.UTF-8", -- Set the locale for date formatting
