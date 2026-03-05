@@ -66,7 +66,7 @@ local function get_day_display(day)
 	if metadata.tags and cfg.tag_symbols then
 		local tags = metadata.tags
 		if type(tags) == "string" then
-			tags = { tags } -- handle single tag case
+			tags = { tags }
 		end
 
 		if type(tags) == "table" then
@@ -74,7 +74,7 @@ local function get_day_display(day)
 				if cfg.tag_symbols[tag] then
 					char = cfg.tag_symbols[tag]
 					custom_symbol_found = true
-					break -- use first matching tag
+					break
 				end
 			end
 		end
@@ -137,7 +137,6 @@ local function render_grid()
 		table.insert(lines, string.format("  Year: %d", M.current_year_view))
 		table.insert(lines, "")
 	elseif config.get().grid_mode == "calendar" then
-		-- No specific info line for calendar view, just a blank line for spacing
 		table.insert(lines, "")
 	end
 
@@ -177,10 +176,9 @@ local function render_grid()
 
 		if config.get().grid_mode == "life" then
 			year_for_header = day.age
-		else -- "calendar" or "year"
+		else
 			year_for_header = day.year
 		end
-
 
 		if year_for_header ~= current_year_header then
 			if current_year_header >= 0 then
@@ -269,56 +267,54 @@ local function find_day_at_cursor()
 end
 
 local function update_date_display()
-    local day_idx = find_day_at_cursor()
-    if day_idx and M.days[day_idx] and M.date_buf and vim.api.nvim_buf_is_valid(M.date_buf) then
-        local day = M.days[day_idx]
-        local date_str = string.format("%s", day.date)
-        local cfg = config.get()
-        local birthday = grid.parse_date(cfg.birthday)
-        local current_date = grid.parse_date(date_str)
-        local years, months, days = grid.age_detailed(birthday, current_date)
-        
-        local timestamp = grid.date_to_timestamp(current_date)
-        local weekday
-        -- Temporarily set locale for weekday formatting
-        local original_locale = os.setlocale(nil, "time")
-        local success, result = pcall(function()
-            os.setlocale(cfg.locale, "time")
-            local day_name = os.date("%A", timestamp)
-            os.setlocale(original_locale, "time")
-            return day_name
-        end)
+	local day_idx = find_day_at_cursor()
+	if day_idx and M.days[day_idx] and M.date_buf and vim.api.nvim_buf_is_valid(M.date_buf) then
+		local day = M.days[day_idx]
+		local date_str = string.format("%s", day.date)
+		local cfg = config.get()
+		local birthday = grid.parse_date(cfg.birthday)
+		local current_date = grid.parse_date(date_str)
+		local years, months, days = grid.age_detailed(birthday, current_date)
 
-        if success and result then
-            weekday = result
-        else
-            -- Fallback to 'C' locale if the configured one fails
-            os.setlocale("C", "time")
-            weekday = os.date("%A", timestamp)
-            os.setlocale(original_locale, "time")
-        end
+		local timestamp = grid.date_to_timestamp(current_date)
+		local weekday
+		local original_locale = os.setlocale(nil, "time")
+		local success, result = pcall(function()
+			os.setlocale(cfg.locale, "time")
+			local day_name = os.date("%A", timestamp)
+			os.setlocale(original_locale, "time")
+			return day_name
+		end)
 
-        local today_date_str = os.date("%Y-%m-%d")
-        local today_parsed = grid.parse_date(today_date_str)
-        local days_diff = grid.days_between(today_parsed, current_date)
-        
-        local days_diff_str
-        if days_diff == 0 then
-            days_diff_str = "Today"
-        elseif days_diff > 0 then
-            days_diff_str = string.format("+%d day%s", days_diff, days_diff == 1 and "" or "s")
-        else
-            days_diff_str = string.format("%d day%s", days_diff, days_diff == -1 and "" or "s")
-        end
+		if success and result then
+			weekday = result
+		else
+			os.setlocale("C", "time")
+			weekday = os.date("%A", timestamp)
+			os.setlocale(original_locale, "time")
+		end
 
-        local display_str = string.format(" %dY %02dM %02dD\n %s,\n %s\n %s", years, months, days, weekday, date_str, days_diff_str)
-        
-        vim.api.nvim_buf_set_lines(M.date_buf, 0, -1, false, vim.split(display_str, "\n"))
-    else
-        if M.date_buf and vim.api.nvim_buf_is_valid(M.date_buf) then
-            vim.api.nvim_buf_set_lines(M.date_buf, 0, -1, false, {''})
-        end
-    end
+		local today_date_str = os.date("%Y-%m-%d")
+		local today_parsed = grid.parse_date(today_date_str)
+		local days_diff = grid.days_between(today_parsed, current_date)
+
+		local days_diff_str
+		if days_diff == 0 then
+			days_diff_str = "Today"
+		elseif days_diff > 0 then
+			days_diff_str = string.format("+%d day%s", days_diff, days_diff == 1 and "" or "s")
+		else
+			days_diff_str = string.format("%d day%s", days_diff, days_diff == -1 and "" or "s")
+		end
+
+		local display_str = string.format(" %dY %02dM %02dD\n %s,\n %s\n %s", years, months, days, weekday, date_str, days_diff_str)
+
+		vim.api.nvim_buf_set_lines(M.date_buf, 0, -1, false, vim.split(display_str, "\n"))
+	else
+		if M.date_buf and vim.api.nvim_buf_is_valid(M.date_buf) then
+			vim.api.nvim_buf_set_lines(M.date_buf, 0, -1, false, {''})
+		end
+	end
 end
 
 local function show_note_preview()
@@ -428,7 +424,6 @@ local function toggle_note_preview()
 end
 
 local function handle_narrow_split(filepath, current_grid_win)
-	-- NARROW: First horizontal, second vertical
 	if #M.note_win_ids == 0 then
 		vim.api.nvim_command("belowright split " .. vim.fn.fnameescape(filepath))
 		table.insert(M.note_win_ids, vim.api.nvim_get_current_win())
@@ -451,19 +446,15 @@ local function handle_narrow_split(filepath, current_grid_win)
 end
 
 local function handle_wide_split(filepath, current_grid_win)
-	-- WIDE: First vertical, second horizontal UNDER the first
 	if #M.note_win_ids == 0 then
 		vim.api.nvim_command("rightbelow vsplit " .. vim.fn.fnameescape(filepath))
 		table.insert(M.note_win_ids, vim.api.nvim_get_current_win())
 		vim.api.nvim_set_current_win(current_grid_win)
 	elseif #M.note_win_ids == 1 then
-		-- Get dimensions of the first note window
 		local first_win = M.note_win_ids[1]
 		vim.fn.win_gotoid(first_win)
-
 		vim.api.nvim_command("belowright split " .. vim.fn.fnameescape(filepath))
 		local new_win = vim.api.nvim_get_current_win()
-
 		table.insert(M.note_win_ids, new_win)
 		vim.api.nvim_set_current_win(current_grid_win)
 	else
@@ -510,7 +501,6 @@ local function open_note_split()
 		local win_width = vim.api.nvim_win_get_width(M.win)
 		local current_grid_win = vim.api.nvim_get_current_win()
 
-		-- Clean up invalid windows
 		local valid = {}
 		for _, win_id in ipairs(M.note_win_ids) do
 			if vim.api.nvim_win_is_valid(win_id) then
@@ -521,14 +511,12 @@ local function open_note_split()
 
 		local cfg = config.get()
 		if cfg.note_split_mode == "reuse" and #M.note_win_ids > 0 then
-			-- A note window already exists, so replace its buffer
 			local note_win_id = M.note_win_ids[1]
 			local buf = vim.fn.bufnr(filepath, true)
 			vim.api.nvim_win_set_buf(note_win_id, buf)
 			vim.api.nvim_buf_call(buf, function() vim.cmd("edit") end)
 			vim.api.nvim_set_current_win(current_grid_win)
 		else
-			-- This handles both "split" mode and the first open in "reuse" mode
 			local effective_split_strategy = M.split_strategy
 			if not effective_split_strategy then
 				if win_width <= vertical_split_threshold then
@@ -536,7 +524,7 @@ local function open_note_split()
 				else
 					effective_split_strategy = "wide"
 				end
-				M.split_strategy = effective_split_strategy -- Store for subsequent calls
+				M.split_strategy = effective_split_strategy
 			end
 
 			if effective_split_strategy == "narrow" then
@@ -572,7 +560,6 @@ local function close_all_note_splits()
 	local original_win = vim.api.nvim_get_current_win()
 	local had_error = false
 	local closed_count = 0
-	-- Use a copy as the autocommand on WinClosed will modify the table
 	local win_ids_copy = {}
 	for _, id in ipairs(M.note_win_ids) do table.insert(win_ids_copy, id) end
 
@@ -586,7 +573,7 @@ local function close_all_note_splits()
 			end
 		end
 	end
-	M.split_strategy = nil -- Reset split strategy
+	M.split_strategy = nil
 	vim.api.nvim_set_current_win(original_win)
 	if had_error then
 		vim.notify("Could not close some splits (they may have unsaved changes).", vim.log.levels.WARN)
@@ -615,7 +602,7 @@ local function write_and_close_all_note_splits()
 			closed_count = closed_count + 1
 		end
 	end
-	M.split_strategy = nil -- Reset split strategy
+	M.split_strategy = nil
 	vim.api.nvim_set_current_win(original_win)
 	if closed_count > 0 then
 		vim.notify("Saved and closed " .. closed_count .. " note split(s).", vim.log.levels.INFO)
@@ -631,7 +618,6 @@ local function toggle_note_split_mode()
 		cfg.note_split_mode = "split"
 		vim.notify("Note split mode: Split (multiple notes)", vim.log.levels.INFO)
 	end
-	-- Only close splits if there are any to close, preventing the unwanted message
 	if #M.note_win_ids > 0 then
 		close_all_note_splits()
 	end
@@ -655,7 +641,6 @@ local function confirm_delete_note()
 			local cfg = config.get()
 			local filepath = cfg.daily_notes_path .. "/" .. day.date .. ".md"
 
-			-- Close any open splits for this note before deleting
 			local original_win = vim.api.nvim_get_current_win()
 			local wins_to_close = {}
 			for _, win_id in ipairs(M.note_win_ids) do
@@ -671,16 +656,14 @@ local function confirm_delete_note()
 			for _, win_id in ipairs(wins_to_close) do
 				vim.api.nvim_win_close(win_id, true)
 			end
-			-- Rebuild M.note_win_ids after closing windows
 			local valid = {}
 			for _, win_id in ipairs(M.note_win_ids) do
 				if vim.api.nvim_win_is_valid(win_id) then
 					table.insert(valid, win_id)
-					end
 				end
+			end
 			M.note_win_ids = valid
 			vim.api.nvim_set_current_win(original_win)
-
 
 			if notes.delete_note(day.date) then
 				vim.notify("Note for " .. day.date .. " deleted.", vim.log.levels.INFO)
@@ -696,7 +679,10 @@ local function confirm_delete_note()
 end
 
 local function setup_keymaps()
-	local opts = { buffer = M.buf, nowait = true, silent = true }
+	local buf = M.buf
+
+	-- <Plug> definitions: noremap, buffer-local
+	local popts = { buffer = buf, noremap = true, silent = true }
 
 	local function jump_to_today()
 		for i, day in ipairs(M.days) do
@@ -708,39 +694,30 @@ local function setup_keymaps()
 						return
 					end
 				end
-				break -- Found today, no need to continue outer loop
+				break
 			end
 		end
 	end
 
-	vim.keymap.set("n", "q", function() M.close() end, opts)
-	vim.keymap.set("n", "x", close_all_note_splits, opts)
-	vim.keymap.set("n", "X", write_and_close_all_note_splits, opts)
-	vim.keymap.set("n", "D", confirm_delete_note, opts)
+	vim.keymap.set("n", "<Plug>(recollect-quit)", function() M.close() end, popts)
+	vim.keymap.set("n", "<Plug>(recollect-close-splits)", close_all_note_splits, popts)
+	vim.keymap.set("n", "<Plug>(recollect-write-splits)", write_and_close_all_note_splits, popts)
+	vim.keymap.set("n", "<Plug>(recollect-delete-note)", confirm_delete_note, popts)
+	vim.keymap.set("n", "<Plug>(recollect-open-note)", open_note_split, popts)
+	vim.keymap.set("n", "<Plug>(recollect-toggle-split)", toggle_note_split_mode, popts)
+	vim.keymap.set("n", "<Plug>(recollect-today)", jump_to_today, popts)
+	vim.keymap.set("n", "<Plug>(recollect-preview)", toggle_note_preview, popts)
+	vim.keymap.set("n", "<Plug>(recollect-toggle-periods)", toggle_periods_display, popts)
+	vim.keymap.set("n", "<Plug>(recollect-filter-periods)", toggle_period_filter, popts)
 
-	vim.keymap.set("n", "j", "j", opts)
-	vim.keymap.set("n", "k", "k", opts)
-	vim.keymap.set("n", "h", "h", opts)
-	vim.keymap.set("n", "l", "l", opts)
-	vim.keymap.set("n", "<C-d>", "<C-d>", opts)
-	vim.keymap.set("n", "<C-u>", "<C-u>", opts)
-
-	vim.keymap.set("n", "<CR>", function()
-		open_note_split()
-	end, opts)
-
-    vim.keymap.set("n", "s", toggle_note_split_mode, opts)
-
-	vim.keymap.set("n", "r", function()
+	vim.keymap.set("n", "<Plug>(recollect-refresh)", function()
 		notes.build_cache()
 		M.days, M.days_lived = grid.generate_life_days()
 		render_grid()
 		vim.notify("Recollect refreshed", vim.log.levels.INFO)
-	end, opts)
+	end, popts)
 
-	vim.keymap.set("n", "t", jump_to_today, opts)
-
-	vim.keymap.set("n", "/", function()
+	vim.keymap.set("n", "<Plug>(recollect-search-date)", function()
 		vim.ui.input({ prompt = "Jump to date (YYYY-MM-DD): " }, function(input)
 			if not input then return end
 			input = input:gsub("%.", "-")
@@ -752,41 +729,30 @@ local function setup_keymaps()
 							vim.cmd("normal! zz")
 							render_grid()
 							if M.preview_enabled then show_note_preview() end
-							vim.notify("Jumped to " .. input, vim.log.levels.INFO)							return
+							vim.notify("Jumped to " .. input, vim.log.levels.INFO)
+							return
 						end
 					end
 				end
 			end
 			vim.notify("Date not found: " .. input, vim.log.levels.WARN)
 		end)
-	end, opts)
+	end, popts)
 
-	vim.keymap.set("n", "p", function()
-		toggle_note_preview()
-	end, opts)
-
-	vim.keymap.set("n", "P", function()
-		toggle_periods_display()
-	end, opts)
-
-	vim.keymap.set("n", "R", function()
-		toggle_period_filter()
-	end, opts)
-
-	vim.keymap.set("n", "g", function()
+	vim.keymap.set("n", "<Plug>(recollect-toggle-grid)", function()
 		local cfg = config.get()
 		if cfg.grid_mode == "life" then
 			cfg.grid_mode = "calendar"
 			M.days, M.days_lived = grid.generate_calendar_years_days()
-		else -- calendar or year -> life
+		else
 			cfg.grid_mode = "life"
 			M.days, M.days_lived = grid.generate_life_days()
 		end
 		render_grid()
 		jump_to_today()
-	end, opts)
+	end, popts)
 
-	vim.keymap.set("n", "Y", function()
+	vim.keymap.set("n", "<Plug>(recollect-year-view)", function()
 		local cfg = config.get()
 		cfg.grid_mode = "year"
 		local day_idx = find_day_at_cursor()
@@ -798,9 +764,9 @@ local function setup_keymaps()
 		M.days, M.days_lived = grid.generate_year_days(M.current_year_view)
 		render_grid()
 		jump_to_today()
-	end, opts)
+	end, popts)
 
-	vim.keymap.set("n", "m", function()
+	vim.keymap.set("n", "<Plug>(recollect-manage-periods)", function()
 		periods.open({
 			on_close = function()
 				M.days, M.days_lived = grid.generate_life_days()
@@ -808,15 +774,16 @@ local function setup_keymaps()
 				vim.notify("Recollect refreshed", vim.log.levels.INFO)
 			end
 		})
-	end, opts)
+	end, popts)
 
-	vim.keymap.set("n", "[", function()
+	vim.keymap.set("n", "<Plug>(recollect-prev-note)", function()
 		local current_idx = find_day_at_cursor() or 1
 		for i = current_idx - 1, 1, -1 do
 			if notes.note_exists(M.days[i].date) then
 				for _, h in ipairs(M.current_highlights) do
 					if h.day_idx == i then
-						vim.api.nvim_win_set_cursor(M.win, {h.line + 1, h.col_start + 1})						vim.cmd("normal! zz")
+						vim.api.nvim_win_set_cursor(M.win, {h.line + 1, h.col_start + 1})
+						vim.cmd("normal! zz")
 						render_grid()
 						if M.preview_enabled then show_note_preview() end
 						vim.notify("Jumped to previous note: " .. M.days[i].date, vim.log.levels.INFO)
@@ -826,9 +793,9 @@ local function setup_keymaps()
 			end
 		end
 		vim.notify("No previous note found", vim.log.levels.WARN)
-	end, opts)
+	end, popts)
 
-	vim.keymap.set("n", "]", function()
+	vim.keymap.set("n", "<Plug>(recollect-next-note)", function()
 		local current_idx = find_day_at_cursor() or 1
 		for i = current_idx + 1, #M.days do
 			if notes.note_exists(M.days[i].date) then
@@ -845,75 +812,60 @@ local function setup_keymaps()
 			end
 		end
 		vim.notify("No next note found", vim.log.levels.WARN)
-	end, opts)
+	end, popts)
 
-	    vim.keymap.set("n", "f", function()
-	        local cfg = config.get()
-	        local current_win_width = vim.api.nvim_win_get_width(0)
-	        local vertical_preview_threshold = 120 -- Reuse the existing threshold
-	
-	        local previewer_config = {}
-	        if current_win_width > vertical_preview_threshold then
-	            -- Wide window: vertical preview
-	                        previewer_config = {
-	                            layout_strategy = "horizontal",
-	                            layout_config = {
-	                                horizontal = {
-	                                    width = 0.5,
-	                                    height = 0.8, -- Adjust as needed
-	                                    preview_height = 0.7,
-	                                },
-	                            },
-	                        }
-	                    else
-	                        -- Narrow window: vertical preview
-	                        previewer_config = {
-	                            layout_strategy = "vertical",
-	                            layout_config = {
-	                                vertical = {
-	                                    width = 0.9, -- Adjust as needed
-	                                    height = 0.9,
-	                                    preview_width = 0.7,
-	                                    preview_height = 0.7,
-	                                },
-	                            },
-	                        }	        end
-	
-	        require('telescope.builtin').live_grep({
-	            cwd = cfg.daily_notes_path,
-	            prompt_title = "Search Notes Content",
-	            layout_strategy = previewer_config.layout_strategy,
-	            layout_config = previewer_config.layout_config,
-	            attach_mappings = function(_, map)
-	                map('i', '<CR>', function(prompt_bufnr)
-	                    local selection = require('telescope.actions.state').get_selected_entry()
-	                    require('telescope.actions').close(prompt_bufnr)
-	                    if selection then
-	                        local filepath = selection.filename
-	                        local date = filepath:match("(%d%d%d%d%-%d%d%-%d%d)%.md$")
-	                        if date then
-	                            for i, day in ipairs(M.days) do
-	                                if day.date == date then
-	                                    for _, h in ipairs(M.current_highlights) do
-	                                        if h.day_idx == i then
-	                                            vim.api.nvim_win_set_cursor(M.win, {h.line + 1, h.col_start + 1})
-	                                            vim.cmd("normal! zz")
-	                                            render_grid()
-	                                            if M.preview_enabled then show_note_preview() end
-	                                            return
-	                                        end
-	                                    end
-	                                end
-	                            end
-	                        end
-	                        vim.cmd("edit " .. filepath)
-	                    end
-	                end)
-	                return true
-	            end
-	        })
-	    end, opts)
-	vim.keymap.set("n", "?", function()
+	vim.keymap.set("n", "<Plug>(recollect-search-content)", function()
+		local cfg = config.get()
+		local current_win_width = vim.api.nvim_win_get_width(0)
+		local vertical_preview_threshold = 120
+		local previewer_config = {}
+		if current_win_width > vertical_preview_threshold then
+			previewer_config = {
+				layout_strategy = "horizontal",
+				layout_config = { horizontal = { width = 0.5, height = 0.8, preview_height = 0.7 } },
+			}
+		else
+			previewer_config = {
+				layout_strategy = "vertical",
+				layout_config = { vertical = { width = 0.9, height = 0.9, preview_width = 0.7, preview_height = 0.7 } },
+			}
+		end
+		require('telescope.builtin').live_grep({
+			cwd = cfg.daily_notes_path,
+			prompt_title = "Search Notes Content",
+			layout_strategy = previewer_config.layout_strategy,
+			layout_config = previewer_config.layout_config,
+			attach_mappings = function(_, map)
+				map('i', '<CR>', function(prompt_bufnr)
+					local selection = require('telescope.actions.state').get_selected_entry()
+					require('telescope.actions').close(prompt_bufnr)
+					if selection then
+						local filepath = selection.filename
+						local date = filepath:match("(%d%d%d%d%-%d%d%-%d%d)%.md$")
+						if date then
+							for i, day in ipairs(M.days) do
+								if day.date == date then
+									for _, h in ipairs(M.current_highlights) do
+										if h.day_idx == i then
+											vim.api.nvim_win_set_cursor(M.win, {h.line + 1, h.col_start + 1})
+											vim.cmd("normal! zz")
+											render_grid()
+											if M.preview_enabled then show_note_preview() end
+											return
+										end
+									end
+								end
+							end
+						end
+						vim.cmd("edit " .. filepath)
+					end
+				end)
+				return true
+			end
+		})
+	end, popts)
+
+	vim.keymap.set("n", "<Plug>(recollect-help)", function()
 		local help_lines = {
 			"  ╔═══════════════════════════════════════╗",
 			"  ║           Recollect HELP              ║",
@@ -944,7 +896,7 @@ local function setup_keymaps()
 			"  P           - Toggle period colors",
 			"",
 			"Other:",
-			"  q			     - Close Recollect",
+			"  q           - Close Recollect",
 			"  ?           - Show this help",
 			"",
 			"Press any key to close...",
@@ -971,7 +923,38 @@ local function setup_keymaps()
 		vim.keymap.set("n", "q", function()
 			vim.api.nvim_win_close(help_win, true)
 		end, { buffer = help_buf, nowait = true })
-	end, opts)
+	end, popts)
+
+	-- Default key → <Plug> bindings (remap = true so they follow through)
+	local opts = { buffer = buf, remap = true, nowait = true, silent = true }
+
+	vim.keymap.set("n", "q",     "<Plug>(recollect-quit)",            opts)
+	vim.keymap.set("n", "x",     "<Plug>(recollect-close-splits)",    opts)
+	vim.keymap.set("n", "X",     "<Plug>(recollect-write-splits)",    opts)
+	vim.keymap.set("n", "D",     "<Plug>(recollect-delete-note)",     opts)
+	vim.keymap.set("n", "<CR>",  "<Plug>(recollect-open-note)",       opts)
+	vim.keymap.set("n", "s",     "<Plug>(recollect-toggle-split)",    opts)
+	vim.keymap.set("n", "r",     "<Plug>(recollect-refresh)",         opts)
+	vim.keymap.set("n", "t",     "<Plug>(recollect-today)",           opts)
+	vim.keymap.set("n", "/",     "<Plug>(recollect-search-date)",     opts)
+	vim.keymap.set("n", "p",     "<Plug>(recollect-preview)",         opts)
+	vim.keymap.set("n", "P",     "<Plug>(recollect-toggle-periods)",  opts)
+	vim.keymap.set("n", "R",     "<Plug>(recollect-filter-periods)",  opts)
+	vim.keymap.set("n", "g",     "<Plug>(recollect-toggle-grid)",     opts)
+	vim.keymap.set("n", "Y",     "<Plug>(recollect-year-view)",       opts)
+	vim.keymap.set("n", "m",     "<Plug>(recollect-manage-periods)",  opts)
+	vim.keymap.set("n", "[",     "<Plug>(recollect-prev-note)",       opts)
+	vim.keymap.set("n", "]",     "<Plug>(recollect-next-note)",       opts)
+	vim.keymap.set("n", "f",     "<Plug>(recollect-search-content)",  opts)
+	vim.keymap.set("n", "?",     "<Plug>(recollect-help)",            opts)
+
+	-- Pass-through movement (no <Plug> needed, just ensure they work in this buffer)
+	vim.keymap.set("n", "j",     "j",     { buffer = buf, nowait = true, silent = true })
+	vim.keymap.set("n", "k",     "k",     { buffer = buf, nowait = true, silent = true })
+	vim.keymap.set("n", "h",     "h",     { buffer = buf, nowait = true, silent = true })
+	vim.keymap.set("n", "l",     "l",     { buffer = buf, nowait = true, silent = true })
+	vim.keymap.set("n", "<C-d>", "<C-d>", { buffer = buf, nowait = true, silent = true })
+	vim.keymap.set("n", "<C-u>", "<C-u>", { buffer = buf, nowait = true, silent = true })
 end
 
 function M.open()
@@ -1006,7 +989,6 @@ function M.open()
 	M.date_win = vim.api.nvim_open_win(M.date_buf, false, {
 		relative = 'editor',
 		row = 19,
-		--		col = vim.o.columns - 14,
 		col = 80,
 		width = 12,
 		height = 4,
@@ -1035,15 +1017,17 @@ function M.open()
 		end,
 	})
 
-	for i, day in ipairs(M.days) do		if day.is_today then
-		for _, h in ipairs(M.current_highlights) do
-			if h.day_idx == i then
-				vim.api.nvim_win_set_cursor(M.win, {math.max(1, h.line + 1), h.col_start + 1})					vim.cmd("normal! zz")
-				break
+	for i, day in ipairs(M.days) do
+		if day.is_today then
+			for _, h in ipairs(M.current_highlights) do
+				if h.day_idx == i then
+					vim.api.nvim_win_set_cursor(M.win, {math.max(1, h.line + 1), h.col_start + 1})
+					vim.cmd("normal! zz")
+					break
+				end
 			end
+			break
 		end
-		break
-	end
 	end
 end
 

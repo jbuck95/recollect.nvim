@@ -23,7 +23,7 @@ function M.load_periods()
     if success and type(decoded) == "table" then
       M.periods = decoded
     else
-      M.periods = config.get().periods -- Fallback to default if JSON is malformed
+      M.periods = config.get().periods
     end
   else
     M.periods = config.get().periods
@@ -40,7 +40,6 @@ function M.save_periods()
 
   local file = io.open(path, "w")
   if file then
-    -- Use vim.fn.json_encode which is built-in and reliable
     file:write(vim.fn.json_encode(M.periods))
     file:close()
     config.current.periods = M.periods
@@ -49,16 +48,16 @@ end
 
 local function render_main()
   if not M.buf or not vim.api.nvim_buf_is_valid(M.buf) then return end
-  
+
   vim.api.nvim_buf_set_option(M.buf, "modifiable", true)
-  
+
   local lines = {
     "               ╔═══════════════════════════════════════╗",
     "               ║        		MANAGE PERIODS 	            ║",
     "               ╚═══════════════════════════════════════╝",
     "",
   }
-  
+
   if #M.periods == 0 then
     table.insert(lines, "  No periods defined. Press 'a' to add one.")
   else
@@ -74,10 +73,10 @@ local function render_main()
       table.insert(lines, line)
     end
   end
-  
+
   table.insert(lines, "")
   table.insert(lines, "  j/k: navigate | a: add | e/<CR>: edit | d: delete | q: close & save")
-  
+
   vim.api.nvim_buf_set_lines(M.buf, 0, -1, false, lines)
   vim.api.nvim_buf_set_option(M.buf, "modifiable", false)
 end
@@ -102,7 +101,7 @@ local function open_edit_window(period_index)
       prompt_for_field("finish", period.finish, function()
         prompt_for_field("color", period.color, function()
           M.save_periods()
-          render_main() -- Refresh the main list after all edits
+          render_main()
         end)
       end)
     end)
@@ -132,8 +131,7 @@ end
 local function delete_period()
   if M.selected_period <= 0 or M.selected_period > #M.periods then return end
   local period = M.periods[M.selected_period]
-  
-  -- Check if vim.ui.confirm exists, otherwise use a fallback
+
   if vim.ui and vim.ui.confirm and type(vim.ui.confirm) == 'function' then
     vim.ui.confirm("Delete period '" .. period.label .. "'?", function(confirmed)
       if confirmed then
@@ -148,7 +146,6 @@ local function delete_period()
       end
     end)
   else
-    -- Fallback for older Neovim versions or missing vim.ui.confirm
     local response = vim.fn.input("Delete period '" .. period.label .. "'? (y/N): ")
     if response:lower() == 'y' then
       table.remove(M.periods, M.selected_period)
@@ -164,35 +161,48 @@ local function delete_period()
 end
 
 local function setup_main_keymaps()
-  local opts = { buffer = M.buf, nowait = true, silent = true }
-  
-  vim.keymap.set("n", "q", function()
+  local buf = M.buf
+
+  -- <Plug> definitions: noremap, buffer-local
+  local popts = { buffer = buf, noremap = true, silent = true }
+
+  vim.keymap.set("n", "<Plug>(recollect-periods-quit)", function()
     if M.win and vim.api.nvim_win_is_valid(M.win) then
       vim.api.nvim_win_close(M.win, true)
       if M.on_close_callback then
         M.on_close_callback()
       end
     end
-  end, opts)
-  
-  vim.keymap.set("n", "j", function()
+  end, popts)
+
+  vim.keymap.set("n", "<Plug>(recollect-periods-next)", function()
     if M.selected_period < #M.periods then
       M.selected_period = M.selected_period + 1
       render_main()
     end
-  end, opts)
-  
-  vim.keymap.set("n", "k", function()
+  end, popts)
+
+  vim.keymap.set("n", "<Plug>(recollect-periods-prev)", function()
     if M.selected_period > 1 then
       M.selected_period = M.selected_period - 1
       render_main()
     end
-  end, opts)
-  
-  vim.keymap.set("n", "a", add_period, opts)
-  vim.keymap.set("n", "e", edit_period, opts)
-  vim.keymap.set("n", "<CR>", edit_period, opts)
-  vim.keymap.set("n", "d", delete_period, opts)
+  end, popts)
+
+  vim.keymap.set("n", "<Plug>(recollect-periods-add)",    add_period,    popts)
+  vim.keymap.set("n", "<Plug>(recollect-periods-edit)",   edit_period,   popts)
+  vim.keymap.set("n", "<Plug>(recollect-periods-delete)", delete_period, popts)
+
+  -- Default key → <Plug> bindings
+  local opts = { buffer = buf, remap = true, nowait = true, silent = true }
+
+  vim.keymap.set("n", "q",    "<Plug>(recollect-periods-quit)",   opts)
+  vim.keymap.set("n", "j",    "<Plug>(recollect-periods-next)",   opts)
+  vim.keymap.set("n", "k",    "<Plug>(recollect-periods-prev)",   opts)
+  vim.keymap.set("n", "a",    "<Plug>(recollect-periods-add)",    opts)
+  vim.keymap.set("n", "e",    "<Plug>(recollect-periods-edit)",   opts)
+  vim.keymap.set("n", "<CR>", "<Plug>(recollect-periods-edit)",   opts)
+  vim.keymap.set("n", "d",    "<Plug>(recollect-periods-delete)", opts)
 end
 
 function M.open(opts)
@@ -200,13 +210,13 @@ function M.open(opts)
   M.on_close_callback = opts.on_close
 
   M.load_periods()
-  
+
   M.buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_option(M.buf, "bufhidden", "wipe")
-  
+
   local width = 70
   local height = 20
-  
+
   M.win = vim.api.nvim_open_win(M.buf, true, {
     relative = "editor",
     width = width,
@@ -216,7 +226,7 @@ function M.open(opts)
     style = "minimal",
     border = "rounded",
   })
-  
+
   render_main()
   setup_main_keymaps()
 end

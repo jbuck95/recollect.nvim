@@ -153,6 +153,61 @@ date: %s
         orange = "#fab387",
       },
     })
+    		-- Keymaps:
+		vim.keymap.set("n", "<leader>rc", "<cmd>Recollect<cr>", { desc = "Open Recollect" })
+		vim.api.nvim_create_autocmd("FileType", {
+			pattern = "recollect",
+			callback = function()
+				local map = function(lhs, plug, desc)
+					vim.keymap.set("n", lhs, plug, { buffer = true, remap = true, silent = true, desc = desc })
+				end
+
+				-- Navigation
+				map("t",     "<Plug>(recollect-today)",          "Jump to today")
+				map("/",     "<Plug>(recollect-search-date)",    "Jump to date")
+				map("[",     "<Plug>(recollect-prev-note)",      "Previous note")
+				map("]",     "<Plug>(recollect-next-note)",      "Next note")
+				map("f",     "<Plug>(recollect-search-content)", "Fuzzy search notes")
+
+				-- Actions
+				map("<CR>",  "<Plug>(recollect-open-note)",      "Open / create note")
+				map("D",     "<Plug>(recollect-delete-note)",    "Delete note")
+				map("r",     "<Plug>(recollect-refresh)",        "Refresh cache")
+				map("x",     "<Plug>(recollect-close-splits)",   "Close splits")
+				map("X",     "<Plug>(recollect-write-splits)",   "Save & close splits")
+				map("m",     "<Plug>(recollect-manage-periods)", "Manage periods")
+
+				-- Toggles
+				map("s",     "<Plug>(recollect-toggle-split)",   "Toggle split mode")
+				map("p",     "<Plug>(recollect-preview)",        "Toggle preview")
+				map("P",     "<Plug>(recollect-toggle-periods)", "Toggle period colors")
+				map("R",     "<Plug>(recollect-filter-periods)", "Toggle period filter")
+				map("g",     "<Plug>(recollect-toggle-grid)",    "Toggle life/calendar grid")
+				map("Y",     "<Plug>(recollect-year-view)",      "Year view")
+
+				-- Other
+				map("q",     "<Plug>(recollect-quit)",           "Close Recollect")
+				map("?",     "<Plug>(recollect-help)",           "Show help")
+			end,
+		})
+
+		-- Periods window keymaps (buffer-local, active inside the Periods popup)
+		vim.api.nvim_create_autocmd("FileType", {
+			pattern = "recollect_periods",
+			callback = function()
+				local map = function(lhs, plug, desc)
+					vim.keymap.set("n", lhs, plug, { buffer = true, remap = true, silent = true, desc = desc })
+				end
+
+				map("j",    "<Plug>(recollect-periods-next)",   "Next period")
+				map("k",    "<Plug>(recollect-periods-prev)",   "Previous period")
+				map("a",    "<Plug>(recollect-periods-add)",    "Add period")
+				map("e",    "<Plug>(recollect-periods-edit)",   "Edit period")
+				map("<CR>", "<Plug>(recollect-periods-edit)",   "Edit period")
+				map("d",    "<Plug>(recollect-periods-delete)", "Delete period")
+				map("q",    "<Plug>(recollect-periods-quit)",   "Close periods")
+			end,
+		})
   end,
 }
 ```
