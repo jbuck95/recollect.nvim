@@ -74,7 +74,7 @@ you can always press '?' for help.
 ## Installation / Config
 ### Install with Lazy: 
 
-```lua
+```
 -- ~/.config/nvim/lua/plugins/recollect.lua
 return {
 	"jbuck95/recollect.nvim",
@@ -90,6 +90,8 @@ return {
 			data_dir = vim.fn.expand("~") .. "/Documents/recollect-data",
 			-- The start date for your grid.
 			birthday = "1990-01-01",
+            -- Set default split behaviour
+            note_split_mode = "reuse", -- "split" or "reuse"
 			-- add Tags you can sort in the Tag picker. Order them aswell...
 			tracked_tags = {
 				deadline = { label = "Deadlines", icon = "❗", order = 1 },

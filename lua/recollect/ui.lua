@@ -519,12 +519,16 @@ local function open_note_split()
 		end
 		M.note_win_ids = valid
 
-		if cfg.note_split_mode == "reuse" and #M.note_win_ids > 0 then
-			local note_win_id = M.note_win_ids[1]
-			local buf = vim.fn.bufnr(filepath, true)
-			vim.api.nvim_win_set_buf(note_win_id, buf)
-			vim.api.nvim_buf_call(buf, function() vim.cmd("edit") end)
-			vim.api.nvim_set_current_win(current_grid_win)
+if cfg.note_split_mode == "reuse" and #M.note_win_ids > 0 then
+  local note_win_id = M.note_win_ids[1]
+  -- alte Note speichern
+  local old_buf = vim.api.nvim_win_get_buf(note_win_id)
+  pcall(vim.api.nvim_buf_call, old_buf, function() vim.cmd("silent! write") end)
+  -- neue Note laden
+  local buf = vim.fn.bufnr(filepath, true)
+  vim.api.nvim_win_set_buf(note_win_id, buf)
+  vim.api.nvim_buf_call(buf, function() vim.cmd("edit") end)
+  vim.api.nvim_set_current_win(current_grid_win)
 		else
 			local effective_split_strategy = M.split_strategy
 			if not effective_split_strategy then
@@ -1196,32 +1200,58 @@ function M.open()
 end
 
 function M.close()
-	if M.win and vim.api.nvim_win_is_valid(M.win) then
-		if M.buf and vim.api.nvim_buf_is_valid(M.buf) then
-			vim.api.nvim_buf_delete(M.buf, { force = true })
-		end
-	end
-	if M.preview_win and vim.api.nvim_win_is_valid(M.preview_win) then
-		vim.api.nvim_win_close(M.preview_win, true)
-	end
-	if M.preview_buf and vim.api.nvim_buf_is_valid(M.preview_buf) then
-		vim.api.nvim_buf_delete(M.preview_buf, { force = true })
-	end
-	if M.date_win and vim.api.nvim_win_is_valid(M.date_win) then
-		vim.api.nvim_win_close(M.date_win, true)
-	end
-	if M.date_buf and vim.api.nvim_buf_is_valid(M.date_buf) then
-		vim.api.nvim_buf_delete(M.date_buf, { force = true })
-	end
-	M.buf = nil
-	M.win = nil
-	M.preview_buf = nil
-	M.preview_win = nil
-	M.date_buf = nil
-	M.date_win = nil
-	M.preview_enabled = false
-	M.note_win_ids = {}
-	M.split_strategy = nil
-end
+  if M.cursor_autocmd_id then
+    pcall(vim.api.nvim_del_autocmd, M.cursor_autocmd_id)
+    M.cursor_autocmd_id = nil
+  end
 
+  -- note splits speichern + schließen
+  for _, win_id in ipairs(M.note_win_ids) do
+    if vim.api.nvim_win_is_valid(win_id) then
+      local buf_id = vim.api.nvim_win_get_buf(win_id)
+      pcall(vim.api.nvim_buf_call, buf_id, function() vim.cmd("silent! write") end)
+      pcall(vim.api.nvim_win_close, win_id, true)
+    end
+  end
+
+  if M.preview_win and vim.api.nvim_win_is_valid(M.preview_win) then
+    vim.api.nvim_win_close(M.preview_win, true)
+  end
+  if M.preview_buf and vim.api.nvim_buf_is_valid(M.preview_buf) then
+    vim.api.nvim_buf_delete(M.preview_buf, { force = true })
+  end
+  if M.date_win and vim.api.nvim_win_is_valid(M.date_win) then
+    vim.api.nvim_win_close(M.date_win, true)
+  end
+  if M.date_buf and vim.api.nvim_buf_is_valid(M.date_buf) then
+    vim.api.nvim_buf_delete(M.date_buf, { force = true })
+  end
+
+  local win = M.win
+  local buf = M.buf
+
+  M.buf = nil
+  M.win = nil
+  M.preview_buf = nil
+  M.preview_win = nil
+  M.date_buf = nil
+  M.date_win = nil
+  M.preview_enabled = false
+  M.note_win_ids = {}
+  M.split_strategy = nil
+
+  -- recollect buffer löschen, dann window aufräumen
+  if buf and vim.api.nvim_buf_is_valid(buf) then
+    vim.api.nvim_buf_delete(buf, { force = true })
+  end
+  vim.schedule(function()
+    if win and vim.api.nvim_win_is_valid(win) then
+      if #vim.api.nvim_list_wins() <= 1 then
+        vim.cmd("quit")
+      else
+        pcall(vim.api.nvim_win_close, win, true)
+      end
+    end
+  end)
+end
 return M
