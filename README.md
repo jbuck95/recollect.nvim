@@ -71,6 +71,14 @@ you can always press '?' for help.
 
 
 
+## Verify
+
+`:checkhealth recollect`
+
+## Dependencies
+
+- [plenary.nvim](https://github.com/nvim-lua/plenary.nvim)
+
 ## Installation / Config
 ### Install with Lazy: 
 
