@@ -1,4 +1,10 @@
--- ~/.config/nvim/lua/recollect/periods.lua
+---@class recollect.Periods
+---@field buf                number?
+---@field win                number?
+---@field ns                 number
+---@field periods            recollect.Period[]
+---@field selected_period    number
+---@field on_close_callback  function?
 local M = {}
 local config = require("recollect.config")
 
@@ -9,6 +15,7 @@ M.periods = {}
 M.selected_period = 1
 M.on_close_callback = nil
 
+---@return string
 local function get_config_path()
   local cfg = config.get()
   local dir = cfg.data_dir or vim.fn.stdpath("config")
@@ -16,6 +23,7 @@ local function get_config_path()
   return dir .. "/recollect.json"
 end
 
+---Load periods from the JSON data file (falls back to config defaults).
 function M.load_periods()
   local path = get_config_path()
   local file = io.open(path, "r")
@@ -34,6 +42,7 @@ function M.load_periods()
   config.current.periods = M.periods
 end
 
+---Save periods to the JSON data file.
 function M.save_periods()
   local path = get_config_path()
   local parent = vim.fn.fnamemodify(path, ":h")
@@ -165,8 +174,6 @@ end
 
 local function setup_main_keymaps()
   local buf = M.buf
-
-  -- <Plug> definitions: noremap, buffer-local
   local popts = { buffer = buf, noremap = true, silent = true }
 
   vim.keymap.set("n", "<Plug>(recollect-periods-quit)", function()
@@ -196,7 +203,6 @@ local function setup_main_keymaps()
   vim.keymap.set("n", "<Plug>(recollect-periods-edit)",   edit_period,   popts)
   vim.keymap.set("n", "<Plug>(recollect-periods-delete)", delete_period, popts)
 
-  -- Default key → <Plug> bindings
   local opts = { buffer = buf, remap = true, nowait = true, silent = true }
 
   vim.keymap.set("n", "q",    "<Plug>(recollect-periods-quit)",   opts)
@@ -208,6 +214,8 @@ local function setup_main_keymaps()
   vim.keymap.set("n", "d",    "<Plug>(recollect-periods-delete)", opts)
 end
 
+---Open the period manager floating window.
+---@param opts? { on_close?: function }
 function M.open(opts)
   opts = opts or {}
   M.on_close_callback = opts.on_close

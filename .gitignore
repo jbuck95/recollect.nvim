@@ -1,6 +1,9 @@
 # Compiled files
 *.luac
 
+# Vimdoc tags
+doc/tags
+
 # Local Neovim files
 /testsession.vim
 .nvimlog

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
+  "runtime.version": "Lua 5.1",
+  "runtime.path": [
+    "?.lua",
+    "?/init.lua",
+    "lua/?.lua",
+    "lua/?/init.lua"
+  ],
+  "diagnostics.globals": [
+    "vim"
+  ],
+  "workspace.library": [
+    "$VIMRUNTIME/lua",
+    "$VIMRUNTIME/???.lua"
+  ],
+  "workspace.checkThirdParty": false,
+  "hint.enable": true,
+  "hint.setType": true,
+  "hint.await": false,
+  "hint.paramName": "All",
+  "hint.paramType": true,
+  "hint.arrayIndex": "Auto",
+  "type.castNumberToInteger": true,
+  "diagnostics.disable": [
+    "lowercase-global",
+    "undefined-global",
+    "unused-local",
+    "unused-function",
+    "unused-vararg",
+    "trailing-space"
+  ]
+}

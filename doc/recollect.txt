@@ -1,0 +1,215 @@
+*recollect.txt*              Visualise, compare, and edit notes on a life grid
+
+==============================================================================
+CONTENTS                                                 *recollect-contents*
+
+  Introduction ................... |recollect-intro|
+  Commands ....................... |recollect-commands|
+  Configuration .................. |recollect-config|
+  Keymaps ........................ |recollect-keymaps|
+  Grid Modes ..................... |recollect-grid-modes|
+  Periods ........................ |recollect-periods|
+  Recurring Events ............... |recollect-recurring|
+  Lua API ........................ |recollect-api|
+  Health ......................... |recollect-health|
+  Troubleshooting ................ |recollect-troubleshooting|
+
+==============================================================================
+INTRODUCTION                                              *recollect-intro*
+
+Recollect is a Neovim plugin that visualises your life on a grid — one cell
+per day, supporting notes for each day via Markdown files with YAML
+frontmatter for tagging, colouring, and metadata.
+
+The plugin works out of the box.  No `setup()` call is required.
+
+==============================================================================
+COMMANDS                                                  *recollect-commands*
+
+:Recollect                                      *:Recollect*
+:Recollect open                                 Open the life-grid UI.
+
+:Recollect today                                Create (or open) today's note.
+
+:Recollect periods                              Open the period manager.
+
+:Recollect recurring                            Open the recurring events manager.
+
+The command supports tab-completion for subcommands.
+
+==============================================================================
+CONFIGURATION                                             *recollect-config*
+
+Call `require("recollect").setup({...})` to override defaults.  All fields
+are optional.
+
+>
+  require("recollect").setup({
+    birthday = "1990-01-01",
+    max_age = 95,
+    grid_mode = "life",
+    locale = "en_US.UTF-8",
+    note_split_mode = "reuse",
+    daily_notes_path = vim.fn.expand("~") .. "/Documents/notes/dailies/",
+    daily_notes_format = "%Y-%m-%d",
+    note_template = function(date_str)
+      return string.format([[
+  ---
+  date: %s
+  ---
+
+  ### Tasks
+  - [ ]
+
+  ### Notes
+
+  ]], date_str)
+    end,
+    bar_position = "top",
+    bar_offset = nil,
+    tag_symbols = {
+      birthday = "🎂",
+      event = "🎉",
+      deadline = "❗",
+      health = "❤️",
+    },
+    colors = {
+      background = "#1e1e2e",
+      default_dot = "#45475a",
+      today_dot = "#f38ba8",
+      note_exists = "#a6e3a1",
+      grid_lines = "#313244",
+      text = "#cdd6f4",
+      year_header = "#89b4fa",
+    },
+    periods = {
+      -- { start = "2020-01-01", finish = "2022-12-31", label = "Example", color = "blue" },
+    },
+    tracked_tags = {
+      deadline = { label = "Deadlines", icon = "❗", order = 1 },
+    },
+  })
+<
+
+Option                      Description ~
+`birthday`                  Birth date in YYYY-MM-DD format.
+`data_dir`                  Directory for JSON data files (default: stdpath("config")).
+`max_age`                   Maximum age in years for the life grid.
+`grid_mode`                 Grid mode: "life", "year", or "calendar".
+`locale`                    Locale for date formatting (e.g. "en_US.UTF-8").
+`note_split_mode`           "split" (multiple note windows) or "reuse" (single window).
+`daily_notes_path`          Directory path for daily Markdown notes.
+`daily_notes_format`        strftime pattern for daily note file names.
+`note_template`             Function returning a template string for new notes.
+`bar_position`              Status bar position: "top" or "bottom".
+`bar_offset`                Additional row offset for the status bar.
+`tag_symbols`               Map from YAML tag names to Unicode display symbols.
+`colors`                    Highlight colour definitions (HEX).
+`periods`                   Default period definitions (overridden by JSON store).
+`tracked_tags`              Telescope tag-picker configuration.
+
+==============================================================================
+KEYMAPS                                                   *recollect-keymaps*
+
+All grid keymaps use `<Plug>` mappings.  Default bindings in the grid buffer:
+
+    Key         Action ~
+    q           Quit Recollect
+    x           Close all note splits without saving
+    X           Save and close all note splits
+    D           Delete note at cursor
+    <CR>        Open note in split
+    s           Toggle split mode (reuse <-> split)
+    r           Refresh cache and grid
+    t           Jump to today
+    /           Jump to date (YYYY-MM-DD prompt)
+    p           Toggle note preview
+    P           Toggle period colours
+    R           Toggle long-period filter
+    g           Toggle calendar/life grid
+    Y           Toggle year view
+    m           Manage periods
+    E           Manage recurring events
+    T           Tag picker (Telescope)
+    f           Search notes content (Telescope)
+    [           Jump to previous note
+    ]           Jump to next note
+    ?           Show help
+
+Movement:  j, k, h, l, b, w, <C-d>, <C-u>
+
+Users can override these by mapping their own keys to the `<Plug>` targets:
+
+>
+  vim.keymap.set("n", "<leader>gr", "<Plug>(recollect-refresh)")
+<
+
+==============================================================================
+GRID MODES                                               *recollect-grid-modes*
+
+Three grid modes are supported:
+
+- `life`    — Every day from birth to max_age, organised in rows of 52 (weeks).
+- `year`    — A single year, with cursor selection.
+- `calendar` — All years from birth to max_age, organised in 8-row blocks
+               per year.  Pre-birth days shown as faint dots.
+
+==============================================================================
+PERIODS                                                   *recollect-periods*
+
+Periods are time ranges with a label and colour.  They colour the background
+of grid cells.  Managed via the floating period UI (`:Recollect periods` or
+`m` in the grid).
+
+Periods are stored in `{data_dir}/recollect.json`.
+
+==============================================================================
+RECURRING EVENTS                                      *recollect-recurring*
+
+Recurring events are calendar-based marks (birthdays, holidays, etc.) that
+appear every year or month without needing a note file.  Managed via
+`:Recollect recurring` or `E` in the grid.
+
+Events are stored in `{data_dir}/recollect_recurring.json`.
+
+==============================================================================
+LUA API                                                      *recollect-api*
+
+>
+  require("recollect").setup({...})       -- configure the plugin (optional)
+  require("recollect").open()             -- open the grid UI
+  require("recollect").close()            -- close the grid UI
+  require("recollect").create_daily_note() -- create/open today's note
+  require("recollect").jump_to_date("2025-01-01") -- open note for date
+  require("recollect").get_config()       -- get current configuration
+  require("recollect.periods").open()     -- open period manager
+  require("recollect.recurring").open()   -- open recurring events manager
+<
+
+==============================================================================
+HEALTH                                                     *recollect-health*
+
+Run `:checkhealth recollect` to verify your installation.  Checks:
+- Core module loading
+- plenary.nvim installation
+- telescope.nvim availability (optional)
+- daily_notes_path existence
+- data_dir existence
+- note_template validity
+
+==============================================================================
+TROUBLESHOOTING                                 *recollect-troubleshooting*
+
+Run `:checkhealth recollect` first.
+
+Minimal reproduction config:
+
+>
+  vim.cmd [[set runtimepath+=~/.local/share/nvim/lazy/recollect]]
+  vim.cmd [[set runtimepath+=~/.local/share/nvim/lazy/plenary.nvim]]
+  lua require("recollect").setup({ daily_notes_path = "/tmp/recollect-test" })
+  lua require("recollect").open()
+<
+
+==============================================================================
+ vim:tw=78:ts=8:ft=help:norl:

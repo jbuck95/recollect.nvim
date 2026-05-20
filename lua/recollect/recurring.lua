@@ -1,6 +1,17 @@
--- ~/.config/nvim/lua/recollect/recurring.lua
+---@class recollect.Recurring
+---@field buf                number?
+---@field win                number?
+---@field events             recollect.RecurringEvent[]
+---@field selected           number
+---@field on_close_callback  function?
 local M = {}
 local config = require("recollect.config")
+
+---@class recollect.RecurringEvent
+---@field title      string
+---@field tag        string
+---@field date       string   "MM-DD" (yearly) or "DD" (monthly)
+---@field recurrence string   "yearly" | "monthly"
 
 M.buf = nil
 M.win = nil
@@ -8,6 +19,7 @@ M.events = {}
 M.selected = 1
 M.on_close_callback = nil
 
+---@return string
 local function get_store_path()
   local cfg = config.get()
   local dir = cfg.data_dir or vim.fn.stdpath("config")
@@ -15,6 +27,7 @@ local function get_store_path()
   return dir .. "/recollect_recurring.json"
 end
 
+---Load recurring events from the JSON store.
 function M.load()
   local path = get_store_path()
   local file = io.open(path, "r")
@@ -30,6 +43,7 @@ function M.load()
   M.events = {}
 end
 
+---Save recurring events to the JSON store.
 function M.save()
   local path = get_store_path()
   local file = io.open(path, "w")
@@ -39,8 +53,9 @@ function M.save()
   end
 end
 
--- Returns synthetic metadata if date_str matches any recurring event.
--- Merges all matching events into one metadata table.
+---Return synthetic metadata if date_str matches any recurring event.
+---@param date_str string  YYYY-MM-DD
+---@return table|nil  { tags: string[], title: string?, _recurring: true }
 function M.get_virtual_metadata(date_str)
   if #M.events == 0 then M.load() end
   local year, month, day = date_str:match("(%d%d%d%d)-(%d%d)-(%d%d)")
@@ -52,10 +67,8 @@ function M.get_virtual_metadata(date_str)
   for _, ev in ipairs(M.events) do
     local matches = false
     if ev.recurrence == "monthly" then
-      -- ev.date is "DD"
       matches = (day == ev.date)
     else
-      -- default yearly: ev.date is "MM-DD"
       matches = (month .. "-" .. day == ev.date)
     end
 
@@ -76,7 +89,6 @@ function M.get_virtual_metadata(date_str)
   }
 end
 
--- Manager UI
 local function render()
   if not M.buf or not vim.api.nvim_buf_is_valid(M.buf) then return end
   vim.api.nvim_buf_set_option(M.buf, "modifiable", true)
@@ -210,6 +222,8 @@ local function setup_keymaps()
   vim.keymap.set("n", "d",    "<Plug>(recollect-rec-delete)", opts)
 end
 
+---Open the recurring events manager floating window.
+---@param opts? { on_close?: function }
 function M.open(opts)
   opts = opts or {}
   M.on_close_callback = opts.on_close

@@ -1,3 +1,29 @@
+---@class recollect.Ui
+---@field buf                  number?
+---@field win                  number?
+---@field ns                   number
+---@field days                 recollect.GridDay[]
+---@field days_lived           number
+---@field current_highlights   recollect.HighlightSpec[]
+---@field preview_buf          number?
+---@field preview_win          number?
+---@field date_buf             number?
+---@field date_win             number?
+---@field preview_enabled      boolean
+---@field periods_enabled      boolean
+---@field filter_long_periods  boolean
+---@field current_year_view    number?
+---@field note_win_ids         number[]
+---@field split_strategy       string?
+---@field cursor_autocmd_id    number?
+
+---@class recollect.HighlightSpec
+---@field line      number
+---@field col_start number
+---@field col_end   number
+---@field hl_group  string
+---@field day_idx?  number
+
 local M = {}
 local config = require("recollect.config")
 local grid = require("recollect.grid")
@@ -704,31 +730,33 @@ local function open_tag_picker()
 		for _, dl in ipairs(notes.get_tagged_notes(tag)) do
 			local days_left = grid.days_between(grid.parse_date(today), grid.parse_date(dl.date))
 
+			local skip = false
 			if year_filter then
 				local item_year = dl.date:match("^(%d%d%d%d)")
 				if tonumber(item_year) ~= tonumber(os.date("%Y")) then
-					goto continue
+					skip = true
 				end
 			end
 
-			local is_valid = (filter_state == "all")
-				or (filter_state == "expired" and days_left < 0)
-				or (filter_state == "upcoming" and days_left >= 0)
+			if not skip then
+				local is_valid = (filter_state == "all")
+					or (filter_state == "expired" and days_left < 0)
+					or (filter_state == "upcoming" and days_left >= 0)
 
-			if is_valid then
-				local status
-				if days_left < 0 then status = "EXPIRED"
-				elseif days_left <= 7 then status = "THIS WEEK"
-				else status = "UPCOMING" end
+				if is_valid then
+					local status
+					if days_left < 0 then status = "EXPIRED"
+					elseif days_left <= 7 then status = "THIS WEEK"
+					else status = "UPCOMING" end
 
-				table.insert(items, {
-					display   = string.format("%-10s  %-12s  %s (%+d days)", status, dl.date, dl.title, days_left),
-					filepath  = cfg.daily_notes_path .. "/" .. dl.date .. ".md",
-					date      = dl.date,
-					days_left = days_left,
-				})
+					table.insert(items, {
+						display   = string.format("%-10s  %-12s  %s (%+d days)", status, dl.date, dl.title, days_left),
+						filepath  = cfg.daily_notes_path .. "/" .. dl.date .. ".md",
+						date      = dl.date,
+						days_left = days_left,
+					})
+				end
 			end
-			::continue::
 		end
 
 		table.sort(items, function(a, b)

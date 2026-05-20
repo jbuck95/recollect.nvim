@@ -80,7 +80,7 @@ you can always press '?' for help.
 - [plenary.nvim](https://github.com/nvim-lua/plenary.nvim)
 
 ## Installation / Config
-### Install with Lazy: 
+### Install with Lazy (setup() is optional — the plugin works out of the box): 
 
 ```
 -- ~/.config/nvim/lua/plugins/recollect.lua
