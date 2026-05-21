@@ -59,25 +59,26 @@ you can always press '?' for help.
 | `x` | Close all splits (`:q all`) |
 | `X` | Write and quit all splits (`:wq all`) |
 | `m` | Manage periods |
+| `E` | Manage recurring Events |
+| `T` | Tag Picker |
 | **Toggles** | |
 | `s` | Toggle split behaviour |
 | `p` | Toggle note preview |
 | `Y` | Toggle year view |
 | `g` | Toggle Calendar/Year grid |
 | `P` | Toggle period colors |
+| `R` | Toggle long period filter |
 | **Other** | |
 | `q` | Close Recollect |
 | `?` | Show this help |
 
 
 
-## Verify
-
-`:checkhealth recollect`
-
-## Dependencies
+## Requirements
 
 - [plenary.nvim](https://github.com/nvim-lua/plenary.nvim)
+
+Verify: `:checkhealth recollect`  |  Help: `:h recollect`
 
 ## Installation / Config
 ### Install with Lazy (setup() is optional — the plugin works out of the box): 
@@ -228,6 +229,54 @@ date: %s
 		})
 	end,
 }
+```
+
+## Minimal Config for Issues
+
+```lua
+vim.cmd([[set rtp+=~/.local/share/nvim/lazy/recollect.nvim]])
+vim.keymap.set("n", "<leader>rc", "<cmd>Recollect<cr>")
+```
+
+## Configuration
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `birthday` | `"1990-01-01"` | Grid start date |
+| `daily_notes_path` | `~/Documents/Notes/Dailies` | Path to daily notes |
+| `daily_notes_format` | `%Y-%m-%d` | strftime pattern for filenames |
+| `data_dir` | `~/Documents/recollect-data` | JSON storage for periods |
+| `bar_position` | `"bottom"` | Status bar position (`top`/`bottom`) |
+| `bar_offset` | `-1` | Bar line offset |
+| `note_split_mode` | `"reuse"` | Split mode (`split`/`reuse`) |
+| `tracked_tags` | `{}` | Tags for the tag picker |
+| `tag_symbols` | see config | Tag → icon mapping |
+| `colors` | Catppuccin Mocha | Color scheme table |
+| `note_template` | see config | Factory function for new notes |
+| `periods` | `{}` | Default time periods |
+
+## Lua API
+
+```lua
+local rc = require("recollect")
+
+-- Optional: override configuration
+rc.setup({ ... })
+
+-- Get the active configuration
+local config = rc.get_config()
+
+-- Open the life-grid UI
+rc.open()
+
+-- Close the life-grid UI (saves splits)
+rc.close()
+
+-- Create/open today's daily note
+rc.create_daily_note()
+
+-- Jump to a specific date
+rc.jump_to_date("2025-03-15")
 ```
 
 ### Config

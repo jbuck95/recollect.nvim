@@ -30,7 +30,8 @@ function M.check()
     vim.health.warn("telescope.nvim not installed (tag picker and content search unavailable)")
   end
 
-  local cfg = pcall(require, "recollect.config").get and require("recollect.config").get() or {}
+  local ok_cfg, mod_cfg = pcall(require, "recollect.config")
+  local cfg = ok_cfg and type(mod_cfg.get) == "function" and mod_cfg.get() or {}
 
   local notes_path = (cfg.daily_notes_path or "~/Documents/notes/dailies/")
   if vim.fn.isdirectory(vim.fn.fnameescape(notes_path)) == 1 then
