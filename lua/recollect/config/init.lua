@@ -10,19 +10,19 @@ M.current = vim.deepcopy(defaults)
 ---@param opts table
 ---@return string|nil
 local function validate(opts)
-  local ok, err = pcall(vim.validate, {
-    birthday         = { opts.birthday, "string", true },
-    max_age          = { opts.max_age, "number", true },
-    grid_mode        = { opts.grid_mode, "string", true },
-    locale           = { opts.locale, "string", true },
-    note_split_mode  = { opts.note_split_mode, "string", true },
-    daily_notes_path = { opts.daily_notes_path, "string", true },
-    bar_position     = { opts.bar_position, "string", true },
-    periods          = { opts.periods, "table", true },
-    tag_symbols      = { opts.tag_symbols, "table", true },
-    colors           = { opts.colors, "table", true },
-    note_template    = { opts.note_template, "function", true },
-  })
+  local ok, err = pcall(function()
+    vim.validate("birthday", opts.birthday, "string", true)
+    vim.validate("max_age", opts.max_age, "number", true)
+    vim.validate("grid_mode", opts.grid_mode, "string", true)
+    vim.validate("locale", opts.locale, "string", true)
+    vim.validate("note_split_mode", opts.note_split_mode, "string", true)
+    vim.validate("daily_notes_path", opts.daily_notes_path, "string", true)
+    vim.validate("bar_position", opts.bar_position, "string", true)
+    vim.validate("periods", opts.periods, "table", true)
+    vim.validate("tag_symbols", opts.tag_symbols, "table", true)
+    vim.validate("colors", opts.colors, "table", true)
+    vim.validate("note_template", opts.note_template, "function", true)
+  end)
   if not ok then return err end
 end
 
